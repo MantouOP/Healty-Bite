@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Healthy Bite — Personalized meal plans, calorie tracking, nutrition reports, and healthy recipes in one platform.">
+  <title>Healthy Bite — Eat Healthy, Live Better</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION BAR
+     ============================================================ -->
+<nav class="navbar" id="navbar">
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo" onclick="navigate('home')">
+      <img src="logo.png" alt="Healthy Bite Logo" class="logo-img">
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="nav-links" id="navLinks">
+      <a href="#" onclick="navigate('home')" class="active" data-page="home">Home</a>
+      <a href="#" onclick="navigate('recipes')" data-page="recipes">Recipes</a>
+      <a href="#" onclick="navigate('meal-planner')" data-page="meal-planner">Meal Planner</a>
+      <a href="#" onclick="navigate('calorie-tracker')" data-page="calorie-tracker">Calorie Tracker</a>
+      <a href="#" onclick="navigate('bmi-calculator')" data-page="bmi-calculator">BMI Calculator</a>
+      <a href="#" onclick="navigate('water-intake')" data-page="water-intake">Water Intake</a>
+      <a href="#" onclick="navigate('premium')" data-page="premium">Premium</a>
+    </div>
+
+    <!-- Nav Buttons -->
+    <div class="nav-buttons" id="navButtons">
+      <button class="btn btn-ghost btn-sm" onclick="openLoginModal()" id="loginBtn">
+        <i class="fa-solid fa-right-to-bracket"></i> Login
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="openSignupModal()" id="signupBtn">Get Started</button>
+      <!-- Shown when "logged in" -->
+      <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')" id="dashboardBtn" style="display:none;">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="logoutUser()" id="logoutBtn" style="display:none;">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+
+    <!-- Mobile Hamburger -->
+    <div class="hamburger" id="hamburger" onclick="toggleMobileMenu()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================
+     LOGIN / SIGN-UP MODAL
+     ============================================================ -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <div class="modal-close" onclick="closeAuthModal()"><i class="fa-solid fa-xmark"></i></div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm">
+      <h2>Welcome Back 👋</h2>
+      <p class="modal-sub">Sign in to your Healthy Bite account</p>
+
+      <!-- Social Login Buttons -->
+      <div class="social-btns">
+        <button class="social-btn" onclick="socialLogin('Google')">
+          <i class="fa-brands fa-google" style="color:#4285F4;font-size:1.1rem;"></i>
+          Continue with Google
+        </button>
+        <button class="social-btn" onclick="socialLogin('Apple')">
+          <i class="fa-brands fa-apple" style="color:#000;font-size:1.2rem;"></i>
+          Continue with Apple
+        </button>
+      </div>
+
+      <div class="divider">or sign in with email</div>
+
+      <!-- Email / Password -->
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+
+      <span class="forgot-link" onclick="forgotPassword()">Forgot password?</span>
+
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="loginUser()">Sign In</button>
+
+      <p class="modal-footer">Don't have an account? <a onclick="toggleAuthForm()">Sign Up</a></p>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signupForm" style="display:none;">
+      <h2>Create Account 🌿</h2>
+      <p class="modal-sub">Start your healthy journey today</p>
+
+      <div class="social-btns">
+        <button class="social-btn" onclick="socialLogin('Google')">
+          <i class="fa-brands fa-google" style="color:#4285F4;font-size:1.1rem;"></i>
+          Sign up with Google
+        </button>
+        <button class="social-btn" onclick="socialLogin('Apple')">
+          <i class="fa-brands fa-apple" style="color:#000;font-size:1.2rem;"></i>
+          Sign up with Apple
+        </button>
+      </div>
+
+      <div class="divider">or sign up with email</div>
+
+      <div class="form-group">
+        <label for="signupName">Full Name</label>
+        <input type="text" id="signupName" placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label for="signupEmail">Email</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" placeholder="••••••••">
+      </div>
+
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="signupUser()">Create Account</button>
+
+      <p class="modal-footer">Already have an account? <a onclick="toggleAuthForm()">Sign In</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PAYMENT SUCCESS MODAL
+     ============================================================ -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-close" onclick="closePaymentModal()"><i class="fa-solid fa-xmark"></i></div>
+    <div class="payment-success">
+      <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+      <h2>Payment Successful! 🎉</h2>
+      <p class="modal-sub">You're now a Premium member. Enjoy all premium features!</p>
+      <button class="btn btn-primary btn-lg" onclick="closePaymentModal()">Start Exploring</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION: HOME (Hero + Features Overview)
+     ============================================================ -->
+<section class="page-section active" id="home">
+  <!-- Hero -->
+  <div class="hero">
+    <div class="container">
+      <div class="hero-inner">
+        <!-- Left: Content -->
+        <div class="hero-content">
+          <div class="hero-badge"><i class="fa-solid fa-seedling"></i> #1 Nutrition Platform</div>
+          <h1>Eat <span>Healthy</span>, Live <span>Better</span></h1>
+          <p>Personalized meal plans, calorie tracking, nutrition reports, and healthy recipes in one platform. Take control of your health journey today.</p>
+          <div class="hero-buttons">
+            <button class="btn btn-primary btn-lg" onclick="openSignupModal()">
+              <i class="fa-solid fa-rocket"></i> Get Started
+            </button>
+            <button class="btn btn-outline btn-lg" onclick="navigate('premium')">
+              <i class="fa-solid fa-crown"></i> View Premium
+            </button>
+          </div>
+        </div>
+        <!-- Right: Image -->
+        <div class="hero-image">
+          <img src="hero_food.png" alt="Healthy food flat-lay">
+          <!-- Floating stat cards -->
+          <div class="hero-stat">
+            <div class="stat-icon green"><i class="fa-solid fa-fire-flame-curved"></i></div>
+            <div class="stat-info"><strong>1,850 kcal</strong><span>Daily Target</span></div>
+          </div>
+          <div class="hero-stat">
+            <div class="stat-icon blue"><i class="fa-solid fa-droplet"></i></div>
+            <div class="stat-info"><strong>2.5 L</strong><span>Water Intake</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Overview -->
+  <div class="features-overview">
+    <div class="container">
+      <h2 class="section-title">Everything You Need for a Healthier Life</h2>
+      <p class="section-subtitle">From tracking your calories to generating personalized meal plans — we've got you covered.</p>
+      <div class="features-grid">
+        <!-- Free features -->
+        <div class="feature-card" onclick="navigate('recipes')">
+          <div class="card-icon green"><i class="fa-solid fa-utensils"></i></div>
+          <h3>Healthy Recipes</h3>
+          <p>Browse breakfast, lunch & dinner recipes with calorie counts and ingredients.</p>
+        </div>
+        <div class="feature-card" onclick="navigate('recipes')">
+          <div class="card-icon teal"><i class="fa-solid fa-bowl-food"></i></div>
+          <h3>Meal Recommendations</h3>
+          <p>Get personalized meal suggestions based on meat or vegetarian preferences.</p>
+        </div>
+        <div class="feature-card" onclick="navigate('calorie-tracker')">
+          <div class="card-icon blue"><i class="fa-solid fa-fire-flame-curved"></i></div>
+          <h3>Calorie Tracking</h3>
+          <p>Input foods and track your daily calorie intake with our simple database.</p>
+        </div>
+        <div class="feature-card" onclick="navigate('bmi-calculator')">
+          <div class="card-icon purple"><i class="fa-solid fa-weight-scale"></i></div>
+          <h3>BMI Calculator</h3>
+          <p>Calculate your Body Mass Index and see where you fall on the health scale.</p>
+        </div>
+        <div class="feature-card" onclick="navigate('water-intake')">
+          <div class="card-icon blue"><i class="fa-solid fa-glass-water-droplet"></i></div>
+          <h3>Water Intake</h3>
+          <p>Find out how much water you need daily based on your body weight.</p>
+        </div>
+        <div class="feature-card" onclick="navigate('meal-planner')">
+          <div class="card-icon gold"><i class="fa-solid fa-calendar-check"></i></div>
+          <h3>Meal Planning</h3>
+          <p>Plan your daily meals and earn rewards for completing your meal plan.</p>
+        </div>
+        <!-- Premium features -->
+        <div class="feature-card locked" id="featureNutrition" onclick="navigate('premium')">
+          <div class="premium-tag"><i class="fa-solid fa-crown"></i> Premium</div>
+          <div class="lock-overlay"><i class="fa-solid fa-lock"></i></div>
+          <div class="card-icon gold"><i class="fa-solid fa-chart-pie"></i></div>
+          <h3>Nutrition Analysis</h3>
+          <p>Get detailed nutrition breakdowns — protein, carbs, fat, sugar, sodium & more.</p>
+        </div>
+        <div class="feature-card locked" id="featureReport" onclick="navigate('premium')">
+          <div class="premium-tag"><i class="fa-solid fa-crown"></i> Premium</div>
+          <div class="lock-overlay"><i class="fa-solid fa-lock"></i></div>
+          <div class="card-icon red"><i class="fa-solid fa-file-medical"></i></div>
+          <h3>Nutrition Reports</h3>
+          <p>Generate comprehensive nutrition reports and export them as PDF or CSV.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: RECIPES
+     ============================================================ -->
+<section class="page-section" id="recipes">
+  <div class="container">
+    <h2 class="section-title">🥗 Healthy Recipes</h2>
+    <p class="section-subtitle">Discover delicious, nutritious meals for every time of day.</p>
+
+    <!-- Diet type toggle -->
+    <div class="diet-toggle">
+      <button class="diet-toggle-btn active" onclick="filterDiet('all', this)">🍽️ All Meals</button>
+      <button class="diet-toggle-btn" onclick="filterDiet('meat', this)">🥩 Meat-Based</button>
+      <button class="diet-toggle-btn" onclick="filterDiet('vegetarian', this)">🥦 Vegetarian</button>
+    </div>
+
+    <!-- Meal type filter -->
+    <div class="recipes-controls">
+      <div class="filter-group">
+        <label><i class="fa-solid fa-filter"></i> Meal Type:</label>
+        <select id="mealTypeFilter" onchange="filterRecipes()">
+          <option value="all">All Types</option>
+          <option value="breakfast">Breakfast</option>
+          <option value="lunch">Lunch</option>
+          <option value="dinner">Dinner</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Allergy filters -->
+    <div style="margin-bottom:8px;font-weight:600;font-size:.9rem;color:var(--text-secondary);">
+      <i class="fa-solid fa-triangle-exclamation"></i> Filter Allergens:
+    </div>
+    <div class="allergy-filters" id="allergyFilters">
+      <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+        <input type="checkbox" value="peanuts"> 🥜 Peanuts
+      </label>
+      <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+        <input type="checkbox" value="dairy"> 🥛 Dairy
+      </label>
+      <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+        <input type="checkbox" value="seafood"> 🦐 Seafood
+      </label>
+      <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+        <input type="checkbox" value="egg"> 🥚 Egg
+      </label>
+      <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+        <input type="checkbox" value="gluten"> 🌾 Gluten
+      </label>
+    </div>
+
+    <!-- Recipe cards rendered by JS -->
+    <div class="recipes-grid" id="recipesGrid"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: MEAL PLANNER
+     ============================================================ -->
+<section class="page-section" id="meal-planner">
+  <div class="container">
+    <h2 class="section-title">🗓️ Meal Planner</h2>
+    <p class="section-subtitle">Plan your meals, build healthy habits, and earn rewards!</p>
+
+    <!-- Tabs: Daily / Weekly (Premium) -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('daily-plan', this)">📋 Daily Plan</button>
+      <button class="tab-btn" onclick="switchTab('weekly-plan', this)" id="weeklyPlanTab">
+        📅 Weekly Plan <span id="weeklyLock" style="margin-left:4px;">🔒</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('goal-meals', this)" id="goalMealsTab">
+        🎯 Goal-Based <span id="goalLock" style="margin-left:4px;">🔒</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('grocery-list', this)" id="groceryTab">
+        🛒 Grocery List <span id="groceryLock" style="margin-left:4px;">🔒</span>
+      </button>
+    </div>
+
+    <!-- TAB: Daily Plan -->
+    <div class="tab-content active" id="daily-plan">
+      <div class="meal-planner-day">
+        <h3><i class="fa-solid fa-sun" style="color:var(--gold);"></i> Today's Meal Plan</h3>
+        <div class="meal-slot">
+          <span class="meal-slot-label">☀️ Breakfast</span>
+          <select id="planBreakfast" onchange="checkMealPlanComplete()">
+            <option value="">— Select Breakfast —</option>
+          </select>
+        </div>
+        <div class="meal-slot">
+          <span class="meal-slot-label">🌤️ Lunch</span>
+          <select id="planLunch" onchange="checkMealPlanComplete()">
+            <option value="">— Select Lunch —</option>
+          </select>
+        </div>
+        <div class="meal-slot">
+          <span class="meal-slot-label">🌙 Dinner</span>
+          <select id="planDinner" onchange="checkMealPlanComplete()">
+            <option value="">— Select Dinner —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Reward Banner (shown when all 3 meals selected) -->
+      <div class="reward-banner" id="rewardBanner">
+        <h3>🎉 Great job!</h3>
+        <p>You completed your healthy meal plan today. Keep up the amazing work!</p>
+        <div class="reward-badge">🏆 +10 Points — Meal Plan Champion</div>
+      </div>
+    </div>
+
+    <!-- TAB: Weekly Plan (Premium) -->
+    <div class="tab-content" id="weekly-plan">
+      <div id="weeklyPlanContent"></div>
+    </div>
+
+    <!-- TAB: Goal-Based Meals (Premium) -->
+    <div class="tab-content" id="goal-meals">
+      <div id="goalMealsContent"></div>
+    </div>
+
+    <!-- TAB: Grocery List (Premium) -->
+    <div class="tab-content" id="grocery-list">
+      <div id="groceryListContent"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: CALORIE TRACKER
+     ============================================================ -->
+<section class="page-section" id="calorie-tracker">
+  <div class="container">
+    <h2 class="section-title">🔥 Calorie Tracker</h2>
+    <p class="section-subtitle">Track what you eat and stay on top of your nutrition goals.</p>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('basic-tracker', this)">📝 Track Calories</button>
+      <button class="tab-btn" onclick="switchTab('nutrition-analysis', this)" id="nutritionTab">
+        🔬 Nutrition Analysis <span id="nutritionLock" style="margin-left:4px;">🔒</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('nutrition-report', this)" id="reportTab">
+        📊 Report <span id="reportLock" style="margin-left:4px;">🔒</span>
+      </button>
+    </div>
+
+    <!-- TAB: Basic Tracker -->
+    <div class="tab-content active" id="basic-tracker">
+      <div class="calorie-tracker-layout">
+        <div>
+          <div class="calc-form">
+            <h2><i class="fa-solid fa-plus" style="color:var(--primary);"></i> Add Food</h2>
+            <div class="form-group autocomplete-wrapper">
+              <label for="foodInput">Food Name</label>
+              <input type="text" id="foodInput" placeholder="Start typing… e.g. Chicken rice" oninput="showAutoComplete()" autocomplete="off">
+              <div class="autocomplete-list" id="autoCompleteList"></div>
+            </div>
+            <div class="form-group">
+              <label for="foodQty">Servings</label>
+              <input type="number" id="foodQty" value="1" min="0.5" step="0.5">
+            </div>
+            <button class="btn btn-primary" onclick="addFoodToLog()" style="width:100%;">
+              <i class="fa-solid fa-plus"></i> Add to Log
+            </button>
+          </div>
+
+          <!-- Food Log -->
+          <div class="food-log" style="margin-top:24px;">
+            <h3><i class="fa-solid fa-list-check" style="color:var(--primary);"></i> Today's Food Log</h3>
+            <div class="food-log-list" id="foodLogList">
+              <p style="color:var(--text-muted);text-align:center;padding:20px;font-size:.9rem;">No food logged yet. Start adding meals above!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calorie Summary -->
+        <div>
+          <div class="calorie-summary">
+            <h3>Total Calories Today</h3>
+            <div class="total-cal" id="totalCalDisplay">0</div>
+            <div class="cal-label">kcal consumed</div>
+          </div>
+
+          <div class="calc-result" style="margin-top:24px;">
+            <h3 style="font-size:1rem;font-weight:600;color:var(--text-secondary);margin-bottom:16px;">Quick Calorie Reference</h3>
+            <div id="quickRefList" style="text-align:left;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Nutrition Analysis (Premium) -->
+    <div class="tab-content" id="nutrition-analysis">
+      <div id="nutritionAnalysisContent"></div>
+    </div>
+
+    <!-- TAB: Nutrition Report (Premium) -->
+    <div class="tab-content" id="nutrition-report">
+      <div id="nutritionReportContent"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: BMI CALCULATOR
+     ============================================================ -->
+<section class="page-section" id="bmi-calculator">
+  <div class="container">
+    <h2 class="section-title">⚖️ BMI Calculator</h2>
+    <p class="section-subtitle">Find out your Body Mass Index and discover your health category.</p>
+
+    <div class="calc-layout">
+      <div class="calc-form">
+        <h2><i class="fa-solid fa-ruler-combined" style="color:var(--primary);"></i> Enter Your Details</h2>
+        <div class="form-group">
+          <label for="bmiHeight">Height (cm)</label>
+          <input type="number" id="bmiHeight" placeholder="e.g. 170" min="50" max="300">
+        </div>
+        <div class="form-group">
+          <label for="bmiWeight">Weight (kg)</label>
+          <input type="number" id="bmiWeight" placeholder="e.g. 65" min="10" max="500">
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="calculateBMI()" style="width:100%;">
+          <i class="fa-solid fa-calculator"></i> Calculate BMI
+        </button>
+      </div>
+
+      <div class="calc-result" id="bmiResult">
+        <i class="fa-solid fa-weight-scale" style="font-size:3rem;color:var(--green-200);"></i>
+        <div class="result-value" id="bmiValue">—</div>
+        <div class="result-label">Your BMI</div>
+        <div class="result-category" id="bmiCategory" style="display:none;"></div>
+        <div id="bmiMessage" style="margin-top:16px;font-size:.9rem;color:var(--text-secondary);"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: WATER INTAKE
+     ============================================================ -->
+<section class="page-section" id="water-intake">
+  <div class="container">
+    <h2 class="section-title">💧 Daily Water Intake Calculator</h2>
+    <p class="section-subtitle">Stay hydrated! Find out how much water your body needs each day.</p>
+
+    <div class="calc-layout">
+      <div class="calc-form">
+        <h2><i class="fa-solid fa-glass-water-droplet" style="color:var(--blue);"></i> Enter Your Weight</h2>
+        <div class="form-group">
+          <label for="waterWeight">Body Weight (kg)</label>
+          <input type="number" id="waterWeight" placeholder="e.g. 65" min="10" max="500">
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="calculateWaterIntake()" style="width:100%;">
+          <i class="fa-solid fa-calculator"></i> Calculate Water Intake
+        </button>
+      </div>
+
+      <div class="calc-result" id="waterResult">
+        <i class="fa-solid fa-droplet" style="font-size:3rem;color:#93c5fd;"></i>
+        <div class="result-value" id="waterML">—</div>
+        <div class="result-label" id="waterLabel">ml per day</div>
+        <div id="waterLitres" style="font-size:1.4rem;font-weight:700;color:var(--blue);margin-top:8px;"></div>
+        <div class="water-glasses" id="waterGlasses"></div>
+        <div id="waterMessage" style="margin-top:12px;font-size:.9rem;color:var(--text-secondary);"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: PREMIUM
+     ============================================================ -->
+<section class="page-section" id="premium">
+  <div class="premium-section">
+    <div class="container">
+      <h2 class="section-title">Unlock Your Full Potential</h2>
+      <p class="section-subtitle">Get access to advanced nutrition tools, weekly meal plans, AI recommendations, and much more.</p>
+
+      <!-- Pricing Card -->
+      <div class="pricing-card">
+        <div class="pricing-card-inner">
+          <div class="pricing-badge"><i class="fa-solid fa-crown"></i> Premium Plan</div>
+          <div class="pricing-price">RM29<span>.90</span></div>
+          <div class="pricing-period">One-off payment • Lifetime access</div>
+          <ul class="pricing-features">
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> Detailed Nutrition Analysis</li>
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> 7-Day Weekly Meal Planning</li>
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> Advanced Nutrition Reports</li>
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> AI Goal-Based Meal Recommendations</li>
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> Smart Grocery List Generator</li>
+            <li><span class="check-icon"><i class="fa-solid fa-check"></i></span> Export Reports (PDF / CSV / TXT)</li>
+          </ul>
+          <button class="btn btn-gold btn-lg" style="width:100%;" onclick="upgradeToPremium()" id="upgradeBtn">
+            <i class="fa-solid fa-crown"></i> Upgrade to Premium
+          </button>
+          <p id="premiumStatusText" style="margin-top:12px;font-size:.85rem;color:rgba(255,255,255,.5);"></p>
+        </div>
+      </div>
+
+      <!-- Premium Feature Cards -->
+      <div class="premium-features-grid">
+        <div class="premium-feature-card">
+          <div class="pf-icon">🔬</div>
+          <h3>Nutrition Analysis</h3>
+          <p>Input any food and get a full breakdown: calories, protein, carbs, fat, sugar, sodium, and fibre.</p>
+        </div>
+        <div class="premium-feature-card">
+          <div class="pf-icon">📅</div>
+          <h3>Weekly Meal Plan</h3>
+          <p>Auto-generate a balanced 7-day meal plan with breakfast, lunch, and dinner.</p>
+        </div>
+        <div class="premium-feature-card">
+          <div class="pf-icon">📊</div>
+          <h3>Nutrition Report</h3>
+          <p>Get a comprehensive report with total/average calories, macros, and improvement suggestions.</p>
+        </div>
+        <div class="premium-feature-card">
+          <div class="pf-icon">🎯</div>
+          <h3>AI Goal Recommendations</h3>
+          <p>Choose your goal — lose weight, gain muscle, maintain, or eat healthier — and get tailored meals.</p>
+        </div>
+        <div class="premium-feature-card">
+          <div class="pf-icon">🛒</div>
+          <h3>Grocery List</h3>
+          <p>Generate a categorized grocery list from your meal plan — protein, veggies, fruits, carbs, and more.</p>
+        </div>
+        <div class="premium-feature-card">
+          <div class="pf-icon">📥</div>
+          <h3>Export Reports</h3>
+          <p>Download your nutrition reports as PDF, CSV, or plain text for easy sharing and record-keeping.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION: DASHBOARD
+     ============================================================ -->
+<section class="page-section" id="dashboard">
+  <div class="container">
+    <div class="dashboard-header">
+      <div>
+        <h2 id="dashWelcome">Welcome back! 👋</h2>
+        <p style="color:var(--text-secondary);font-size:.95rem;">Here's your health summary for today.</p>
+      </div>
+      <div class="premium-badge-dash free" id="dashPremiumBadge">
+        <i class="fa-solid fa-circle-info"></i> Free Plan
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Calorie card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon green"><i class="fa-solid fa-fire-flame-curved"></i></div>
+          <span class="dash-card-title">Today's Calories</span>
+        </div>
+        <div class="dash-value" id="dashCalories">0</div>
+        <div class="dash-subtitle">kcal consumed</div>
+      </div>
+      <!-- BMI card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon purple"><i class="fa-solid fa-weight-scale"></i></div>
+          <span class="dash-card-title">BMI Result</span>
+        </div>
+        <div class="dash-value" id="dashBMI">—</div>
+        <div class="dash-subtitle" id="dashBMICat">Not calculated yet</div>
+      </div>
+      <!-- Water card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon blue"><i class="fa-solid fa-glass-water-droplet"></i></div>
+          <span class="dash-card-title">Water Goal</span>
+        </div>
+        <div class="dash-value" id="dashWater">—</div>
+        <div class="dash-subtitle">litres / day</div>
+      </div>
+      <!-- Meal plan card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon gold"><i class="fa-solid fa-calendar-check"></i></div>
+          <span class="dash-card-title">Meal Plan</span>
+        </div>
+        <div id="dashMealPlan" style="font-size:.9rem;color:var(--text-secondary);">No meals planned yet.</div>
+      </div>
+      <!-- Reward card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon gold"><i class="fa-solid fa-trophy"></i></div>
+          <span class="dash-card-title">Rewards</span>
+        </div>
+        <div class="dash-value" id="dashPoints">0</div>
+        <div class="dash-subtitle" id="dashBadge">No badges yet</div>
+      </div>
+      <!-- Premium status card -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-icon red"><i class="fa-solid fa-crown"></i></div>
+          <span class="dash-card-title">Premium Status</span>
+        </div>
+        <div id="dashPremiumStatus" style="font-size:.9rem;color:var(--text-secondary);">
+          <p>Free plan active.</p>
+          <button class="btn btn-gold btn-sm" style="margin-top:8px;" onclick="navigate('premium')">Upgrade Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="logo-text" style="font-family:var(--font-display);font-size:1.4rem;font-weight:800;">🍃 Healthy Bite</span>
+        <p>Your all-in-one platform for healthy eating, meal planning, and nutrition tracking. Start your wellness journey today.</p>
+      </div>
+      <div>
+        <h4>Features</h4>
+        <ul>
+          <li><a href="#" onclick="navigate('recipes')">Recipes</a></li>
+          <li><a href="#" onclick="navigate('meal-planner')">Meal Planner</a></li>
+          <li><a href="#" onclick="navigate('calorie-tracker')">Calorie Tracker</a></li>
+          <li><a href="#" onclick="navigate('bmi-calculator')">BMI Calculator</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Premium</h4>
+        <ul>
+          <li><a href="#" onclick="navigate('premium')">Pricing</a></li>
+          <li><a href="#" onclick="navigate('premium')">Nutrition Analysis</a></li>
+          <li><a href="#" onclick="navigate('premium')">Weekly Plans</a></li>
+          <li><a href="#" onclick="navigate('premium')">Reports</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Connect</h4>
+        <ul>
+          <li><a href="#"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
+          <li><a href="#"><i class="fa-brands fa-instagram"></i> Instagram</a></li>
+          <li><a href="#"><i class="fa-brands fa-twitter"></i> Twitter</a></li>
+          <li><a href="#"><i class="fa-solid fa-envelope"></i> Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 Healthy Bite. All rights reserved. Built with 💚 for healthier living.
+    </div>
+  </div>
+</footer>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK (compat for vanilla JS) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<!-- Firebase Configuration -->
+<script src="firebase-config.js"></script>
+
+<!-- Main App JavaScript -->
+<script src="script.js"></script>
+</body>
+</html>
