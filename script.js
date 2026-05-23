@@ -191,6 +191,8 @@ const calorieDB = [
 // 2. APP STATE
 // ──────────────────────────────────────────────────────────────
 
+const GEMINI_API_KEY = "AIzaSyAU6X8AeNMKq4mlwHWOqYiJYPBoA5KDbCM";
+
 let isPremium = false;       // Premium status — loaded from Firestore
 let isLoggedIn = false;      // Login state — managed by Firebase Auth
 let userName = "User";       // User's display name
@@ -723,20 +725,78 @@ document.addEventListener('click', (e) => {
 });
 
 /** Add selected food to the daily log */
-function addFoodToLog() {
+async function addFoodToLog() {
   const foodName = document.getElementById('foodInput').value.trim();
   const qty = parseFloat(document.getElementById('foodQty').value) || 1;
+  const btn = document.getElementById('addFoodBtn');
 
   if (!foodName) {
     showToast('Please enter or select a food item.', 'error');
     return;
   }
 
-  // Look up calories in database
+  // Look up calories in database first (fast path)
   const found = calorieDB.find(f => f.name.toLowerCase() === foodName.toLowerCase());
-  const calories = found ? Math.round(found.calories * qty) : Math.round(200 * qty); // Default 200 if not found
-  const icon = found ? found.icon : "🍽️";
+  
+  let calories, icon;
 
+  if (found) {
+    calories = Math.round(found.calories * qty);
+    icon = found.icon;
+    finishAddingFood(foodName, qty, calories, icon);
+  } else {
+    // If not found, use Gemini AI to estimate
+    if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !GEMINI_API_KEY) {
+      showToast('AI API Key is missing. Using default 200 kcal.', 'warning');
+      calories = Math.round(200 * qty);
+      icon = "🍽️";
+      finishAddingFood(foodName, qty, calories, icon);
+      return;
+    }
+
+    try {
+      // Show loading state on button
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Estimating...';
+      btn.disabled = true;
+
+      const prompt = `Estimate the calories for 1 serving of '${foodName}'. Respond ONLY with a valid JSON object in this exact format: {"calories": 250, "icon": "🍔"}. Do not include markdown formatting or any other text.`;
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      if (!response.ok) throw new Error('API Request Failed');
+      
+      const data = await response.json();
+      const aiText = data.candidates[0].content.parts[0].text.trim();
+      
+      // Clean up markdown if the AI includes it by mistake
+      const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const aiResult = JSON.parse(cleanJson);
+      
+      calories = Math.round(aiResult.calories * qty);
+      icon = aiResult.icon || "🍽️";
+
+      finishAddingFood(foodName, qty, calories, icon);
+    } catch (err) {
+      console.error('AI Estimation error:', err);
+      showToast('AI estimation failed. Using default 200 kcal.', 'error');
+      calories = Math.round(200 * qty);
+      icon = "🍽️";
+      finishAddingFood(foodName, qty, calories, icon);
+    } finally {
+      // Restore button
+      btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add to Log';
+      btn.disabled = false;
+    }
+  }
+}
+
+function finishAddingFood(foodName, qty, calories, icon) {
   // Add to log
   foodLog.push({ name: foodName, qty, calories, icon, id: Date.now() });
 
