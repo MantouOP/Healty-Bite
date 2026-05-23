@@ -193,6 +193,34 @@ const calorieDB = [
 
 const GEMINI_API_KEY = "AIzaSyAU6X8AeNMKq4mlwHWOqYiJYPBoA5KDbCM";
 
+/**
+ * Generic helper function to call the Gemini API
+ * @param {string} prompt - The prompt to send to Gemini
+ */
+async function callGeminiAPI(prompt) {
+  if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !GEMINI_API_KEY) {
+    throw new Error("Gemini API Key is missing.");
+  }
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+
+  if (!response.ok) throw new Error('API Request Failed');
+  
+  const data = await response.json();
+  const aiText = data.candidates[0].content.parts[0].text.trim();
+  
+  // Try to parse as JSON if it looks like JSON
+  let cleanStr = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+  try {
+    return JSON.parse(cleanStr);
+  } catch (e) {
+    return cleanStr; // Return raw text if not JSON
+  }
+}
+
 let isPremium = false;       // Premium status — loaded from Firestore
 let isLoggedIn = false;      // Login state — managed by Firebase Auth
 let userName = "User";       // User's display name
@@ -761,22 +789,7 @@ async function addFoodToLog() {
 
       const prompt = `Estimate the calories for 1 serving of '${foodName}'. Respond ONLY with a valid JSON object in this exact format: {"calories": 250, "icon": "🍔"}. Do not include markdown formatting or any other text.`;
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-
-      if (!response.ok) throw new Error('API Request Failed');
-      
-      const data = await response.json();
-      const aiText = data.candidates[0].content.parts[0].text.trim();
-      
-      // Clean up markdown if the AI includes it by mistake
-      const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const aiResult = JSON.parse(cleanJson);
+      const aiResult = await callGeminiAPI(prompt);
       
       calories = Math.round(aiResult.calories * qty);
       icon = aiResult.icon || "🍽️";
@@ -1032,12 +1045,9 @@ function renderNutritionAnalysis() {
         <h2><i class="fa-solid fa-flask" style="color:var(--primary);"></i> Detailed Nutrition Analysis</h2>
         <div class="form-group">
           <label for="nutritionFoodInput">Food Name</label>
-          <select id="nutritionFoodInput" style="width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.95rem;">
-            <option value="">— Select a food —</option>
-            ${recipes.map(r => `<option value="${r.id}">${r.icon} ${r.name}</option>`).join('')}
-          </select>
+          <input type="text" id="nutritionFoodInput" placeholder="e.g., Big Mac, Nasi Lemak..." style="width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.95rem;">
         </div>
-        <button class="btn btn-primary btn-lg" onclick="analyzeNutrition()" style="width:100%;">
+        <button id="analyzeBtn" class="btn btn-primary btn-lg" onclick="analyzeNutrition()" style="width:100%;">
           <i class="fa-solid fa-search"></i> Analyze
         </button>
       </div>
@@ -1049,46 +1059,63 @@ function renderNutritionAnalysis() {
   `;
 }
 
-function analyzeNutrition() {
-  const id = parseInt(document.getElementById('nutritionFoodInput').value);
-  const recipe = recipes.find(r => r.id === id);
+async function analyzeNutrition() {
+  const foodName = document.getElementById('nutritionFoodInput').value.trim();
+  const btn = document.getElementById('analyzeBtn');
 
-  if (!recipe) {
-    showToast('Please select a food item.', 'error');
+  if (!foodName) {
+    showToast('Please type a food name.', 'error');
     return;
   }
 
-  const n = recipe.nutrition;
-  document.getElementById('nutritionResult').innerHTML = `
-    <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:4px;">${recipe.icon} ${recipe.name}</h3>
-    <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">${recipe.calories} kcal per serving</p>
-    <div class="nutrition-grid">
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.protein}g</div>
-        <div class="nutrient-label">Protein</div>
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+  btn.disabled = true;
+
+  try {
+    const prompt = `Provide a detailed nutritional breakdown for 1 standard serving of '${foodName}'. 
+Respond ONLY with a JSON object in exactly this format, do not add markdown:
+{"name": "Food Name", "icon": "🍔", "calories": 500, "protein": 25, "carbs": 40, "fat": 20, "sugar": 10, "sodium": 600, "fibre": 5}`;
+    
+    const aiResult = await callGeminiAPI(prompt);
+    
+    document.getElementById('nutritionResult').innerHTML = `
+      <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:4px;">${aiResult.icon} ${aiResult.name}</h3>
+      <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">${aiResult.calories} kcal per serving</p>
+      <div class="nutrition-grid">
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.protein}g</div>
+          <div class="nutrient-label">Protein</div>
+        </div>
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.carbs}g</div>
+          <div class="nutrient-label">Carbs</div>
+        </div>
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.fat}g</div>
+          <div class="nutrient-label">Fat</div>
+        </div>
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.sugar}g</div>
+          <div class="nutrient-label">Sugar</div>
+        </div>
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.sodium}mg</div>
+          <div class="nutrient-label">Sodium</div>
+        </div>
+        <div class="nutrient-card">
+          <div class="nutrient-value">${aiResult.fibre}g</div>
+          <div class="nutrient-label">Fibre</div>
+        </div>
       </div>
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.carbs}g</div>
-        <div class="nutrient-label">Carbs</div>
-      </div>
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.fat}g</div>
-        <div class="nutrient-label">Fat</div>
-      </div>
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.sugar}g</div>
-        <div class="nutrient-label">Sugar</div>
-      </div>
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.sodium}mg</div>
-        <div class="nutrient-label">Sodium</div>
-      </div>
-      <div class="nutrient-card">
-        <div class="nutrient-value">${n.fibre}g</div>
-        <div class="nutrient-label">Fibre</div>
-      </div>
-    </div>
-  `;
+    `;
+    showToast(`Analyzed ${aiResult.name} successfully!`, 'success');
+  } catch (err) {
+    console.error('Nutrition analysis error:', err);
+    showToast('Failed to analyze food. Please try again.', 'error');
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-search"></i> Analyze';
+    btn.disabled = false;
+  }
 }
 
 // --- B. WEEKLY MEAL PLANNING ---
@@ -1120,48 +1147,67 @@ function renderWeeklyPlan() {
   container.innerHTML = html;
 }
 
-function generateWeeklyPlan() {
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const breakfasts = recipes.filter(r => r.type === 'breakfast');
-  const lunches = recipes.filter(r => r.type === 'lunch');
-  const dinners = recipes.filter(r => r.type === 'dinner');
+async function generateWeeklyPlan() {
+  const btn = document.querySelector('#weeklyPlanContent .btn-primary');
+  const grid = document.getElementById('weeklyPlanGrid');
+  
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Plan...';
+  btn.disabled = true;
 
-  days.forEach(day => {
-    const b = breakfasts[Math.floor(Math.random() * breakfasts.length)];
-    const l = lunches[Math.floor(Math.random() * lunches.length)];
-    const d = dinners[Math.floor(Math.random() * dinners.length)];
+  try {
+    const prompt = `Generate a 7-day healthy meal plan. Respond ONLY with a valid JSON array of exactly 7 objects (one for each day Monday to Sunday). 
+Each object must have exactly this format:
+{"day": "Monday", "breakfast": {"name": "Oatmeal", "icon": "🥣", "calories": 300}, "lunch": {"name": "Salad", "icon": "🥗", "calories": 400}, "dinner": {"name": "Fish", "icon": "🐟", "calories": 500}}
+Do not add markdown.`;
 
-    document.getElementById(`day-${day}`).innerHTML = `
-      <div class="day-meal">
-        <div class="day-meal-label">☀️ Breakfast</div>
-        <div class="day-meal-name">${b.icon} ${b.name}</div>
-        <div class="day-meal-cal">${b.calories} kcal</div>
-      </div>
-      <div class="day-meal">
-        <div class="day-meal-label">🌤️ Lunch</div>
-        <div class="day-meal-name">${l.icon} ${l.name}</div>
-        <div class="day-meal-cal">${l.calories} kcal</div>
-      </div>
-      <div class="day-meal">
-        <div class="day-meal-label">🌙 Dinner</div>
-        <div class="day-meal-name">${d.icon} ${d.name}</div>
-        <div class="day-meal-cal">${d.calories} kcal</div>
-      </div>
-    `;
-  });
+    const aiResult = await callGeminiAPI(prompt);
+    
+    // Save to global variable if we want to use it for grocery list later
+    window.currentWeeklyPlan = aiResult;
 
-  showToast('✨ Weekly meal plan generated!', 'success');
+    aiResult.forEach(dayPlan => {
+      const dayId = `day-${dayPlan.day.toLowerCase()}`;
+      const dayEl = document.getElementById(dayId);
+      if (dayEl) {
+        dayEl.innerHTML = `
+          <div class="day-meal">
+            <div class="day-meal-label">☀️ Breakfast</div>
+            <div class="day-meal-name">${dayPlan.breakfast.icon} ${dayPlan.breakfast.name}</div>
+            <div class="day-meal-cal">${dayPlan.breakfast.calories} kcal</div>
+          </div>
+          <div class="day-meal">
+            <div class="day-meal-label">🌤️ Lunch</div>
+            <div class="day-meal-name">${dayPlan.lunch.icon} ${dayPlan.lunch.name}</div>
+            <div class="day-meal-cal">${dayPlan.lunch.calories} kcal</div>
+          </div>
+          <div class="day-meal">
+            <div class="day-meal-label">🌙 Dinner</div>
+            <div class="day-meal-name">${dayPlan.dinner.icon} ${dayPlan.dinner.name}</div>
+            <div class="day-meal-cal">${dayPlan.dinner.calories} kcal</div>
+          </div>
+        `;
+      }
+    });
+
+    showToast('✨ Weekly meal plan generated by AI!', 'success');
+  } catch (err) {
+    console.error('Weekly plan error:', err);
+    showToast('Failed to generate plan. Try again.', 'error');
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Weekly Meal Plan';
+    btn.disabled = false;
+  }
 }
 
 // --- C. ADVANCED NUTRITION REPORT ---
-function renderNutritionReport() {
+async function renderNutritionReport() {
   const container = document.getElementById('nutritionReportContent');
 
   if (foodLog.length === 0) {
     container.innerHTML = `
       <div class="premium-lock-banner" style="background:var(--gray-100);color:var(--text-primary);">
         <h3>📊 No Data Yet</h3>
-        <p style="color:var(--text-secondary);">Log some food in the Calorie Tracker first, then come back for your report.</p>
+        <p style="color:var(--text-secondary);">Log some food in the Calorie Tracker first, then come back for your AI report.</p>
         <button class="btn btn-primary btn-sm" onclick="navigate('calorie-tracker')">Go to Tracker</button>
       </div>
     `;
@@ -1171,57 +1217,53 @@ function renderNutritionReport() {
   const totalCal = foodLog.reduce((sum, f) => sum + f.calories, 0);
   const avgCal = Math.round(totalCal / foodLog.length);
 
-  // Estimate macros from logged foods (map against recipes if possible)
-  let totalProtein = 0, totalCarbs = 0, totalFat = 0;
-  foodLog.forEach(f => {
-    const recipe = recipes.find(r => r.name.toLowerCase() === f.name.toLowerCase());
-    if (recipe) {
-      totalProtein += recipe.nutrition.protein * f.qty;
-      totalCarbs += recipe.nutrition.carbs * f.qty;
-      totalFat += recipe.nutrition.fat * f.qty;
-    } else {
-      // Estimate rough macros
-      totalProtein += 10 * f.qty;
-      totalCarbs += 30 * f.qty;
-      totalFat += 8 * f.qty;
-    }
-  });
-
-  // Generate suggestions
-  let suggestions = [];
-  if (totalCal > 2500) suggestions.push("Your calorie intake is high. Consider reducing portion sizes.");
-  if (totalCal < 1200) suggestions.push("Your calorie intake seems low. Make sure you're eating enough.");
-  if (totalProtein < 50) suggestions.push("Consider adding more protein-rich foods like chicken, fish, or tofu.");
-  if (totalFat > 65) suggestions.push("Your fat intake is elevated. Choose leaner protein sources.");
-  if (totalCarbs > 300) suggestions.push("Try replacing refined carbs with whole grains for sustained energy.");
-  if (suggestions.length === 0) suggestions.push("Great balance! Keep up the healthy eating habits. 💪");
-
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-      <div class="report-card">
-        <h3><i class="fa-solid fa-chart-bar" style="color:var(--primary);"></i> Nutrition Summary</h3>
-        <div class="report-stat"><span class="report-stat-label">Total Calories</span><span class="report-stat-value">${totalCal} kcal</span></div>
-        <div class="report-stat"><span class="report-stat-label">Average per Item</span><span class="report-stat-value">${avgCal} kcal</span></div>
-        <div class="report-stat"><span class="report-stat-label">Protein Intake</span><span class="report-stat-value">${Math.round(totalProtein)}g</span></div>
-        <div class="report-stat"><span class="report-stat-label">Carb Intake</span><span class="report-stat-value">${Math.round(totalCarbs)}g</span></div>
-        <div class="report-stat"><span class="report-stat-label">Fat Intake</span><span class="report-stat-value">${Math.round(totalFat)}g</span></div>
-        <div class="report-stat"><span class="report-stat-label">Items Logged</span><span class="report-stat-value">${foodLog.length}</span></div>
-      </div>
-      <div>
-        <div class="report-card">
-          <div class="report-suggestions">
-            <h4>💡 Suggestions for Improvement</h4>
-            <ul>${suggestions.map(s => `<li>${s}</li>`).join('')}</ul>
-          </div>
-        </div>
-        <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="exportReport('txt')"><i class="fa-solid fa-file-lines"></i> Export TXT</button>
-          <button class="btn btn-outline" onclick="exportReport('csv')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-          <button class="btn btn-outline" onclick="exportReport('pdf')"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
-        </div>
-      </div>
+    <div style="text-align:center; padding:40px;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i>
+      <p style="margin-top:16px;">AI is analyzing your food log...</p>
     </div>
   `;
+
+  try {
+    const foodStr = foodLog.map(f => `${f.qty}x ${f.name} (${f.calories} kcal)`).join(', ');
+    const prompt = `Analyze this daily food log: ${foodStr}. Total calories: ${totalCal}.
+Provide 3 personalized, short, actionable suggestions to improve nutrition based on this data.
+Respond ONLY with a JSON string array exactly like this: ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
+Do not add markdown formatting.`;
+
+    let suggestions = await callGeminiAPI(prompt);
+    if (!Array.isArray(suggestions)) {
+      suggestions = ["Eat more vegetables.", "Drink more water.", "Keep tracking your meals!"]; // Fallback
+    }
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div class="report-card">
+          <h3><i class="fa-solid fa-chart-bar" style="color:var(--primary);"></i> Nutrition Summary</h3>
+          <div class="report-stat"><span class="report-stat-label">Total Calories</span><span class="report-stat-value">${totalCal} kcal</span></div>
+          <div class="report-stat"><span class="report-stat-label">Average per Item</span><span class="report-stat-value">${avgCal} kcal</span></div>
+          <div class="report-stat"><span class="report-stat-label">Items Logged</span><span class="report-stat-value">${foodLog.length}</span></div>
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-top:16px;">*Macros omitted for simplicity in dynamic report.</p>
+        </div>
+        <div>
+          <div class="report-card">
+            <div class="report-suggestions">
+              <h4>🤖 AI Suggestions</h4>
+              <ul>${suggestions.map(s => `<li>${s}</li>`).join('')}</ul>
+            </div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="exportReport('txt')"><i class="fa-solid fa-file-lines"></i> Export TXT</button>
+            <button class="btn btn-outline" onclick="exportReport('csv')"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+            <button class="btn btn-outline" onclick="exportReport('pdf')"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error('Report generation error:', err);
+    container.innerHTML = `<p style="color:red;text-align:center;">Failed to generate AI report. Please try again.</p>`;
+  }
 }
 
 // --- D. AI GOAL-BASED MEAL RECOMMENDATIONS ---
@@ -1251,58 +1293,52 @@ function renderGoalMeals() {
   `;
 }
 
-function selectGoal(goal, card) {
+async function selectGoal(goal, card) {
   document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('selected'));
   card.classList.add('selected');
 
-  let recommended = [];
-  let advice = '';
-
-  switch (goal) {
-    case 'lose':
-      // Recommend low-calorie meals
-      recommended = recipes.filter(r => r.calories <= 350).sort((a, b) => a.calories - b.calories);
-      advice = "Focus on lean proteins, vegetables, and controlled portions. These meals are all under 350 kcal.";
-      break;
-    case 'muscle':
-      // Recommend high-protein meals
-      recommended = recipes.filter(r => r.nutrition.protein >= 18).sort((a, b) => b.nutrition.protein - a.nutrition.protein);
-      advice = "Prioritize high-protein meals to support muscle growth and recovery.";
-      break;
-    case 'maintain':
-      // Recommend balanced meals (300-450 kcal)
-      recommended = recipes.filter(r => r.calories >= 300 && r.calories <= 450);
-      advice = "Maintain your current weight with well-balanced meals between 300-450 kcal.";
-      break;
-    case 'healthy':
-      // Recommend vegetarian + high-fibre
-      recommended = recipes.filter(r => r.category === 'vegetarian' || r.nutrition.fibre >= 5);
-      advice = "Incorporate more plant-based meals and high-fibre foods for optimal health.";
-      break;
-  }
-
   const recContainer = document.getElementById('goalRecommendations');
   recContainer.innerHTML = `
-    <div style="background:var(--green-50);border-radius:var(--radius-md);padding:20px;margin-bottom:24px;border-left:4px solid var(--green-500);">
-      <p style="font-weight:600;color:var(--green-700);">💡 ${advice}</p>
-    </div>
-    <div class="recipes-grid">
-      ${recommended.map(r => `
-        <div class="recipe-card">
-          <div class="recipe-card-header">${r.icon}</div>
-          <div class="recipe-card-body">
-            <h3>${r.name}</h3>
-            <div class="recipe-meta">
-              <span class="tag-${r.type}">${capitalize(r.type)}</span>
-              <span class="tag-calories">🔥 ${r.calories} kcal</span>
-              <span class="tag-vegetarian">💪 ${r.nutrition.protein}g protein</span>
-            </div>
-            <p class="steps">${r.steps}</p>
-          </div>
-        </div>
-      `).join('')}
+    <div style="text-align:center; padding:40px;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i>
+      <p style="margin-top:16px;">AI is generating custom recipes for your goal...</p>
     </div>
   `;
+
+  try {
+    const prompt = `Generate 3 healthy meal recommendations for someone trying to ${goal}. 
+Respond ONLY with a JSON array of exactly 3 objects. 
+Each object must have exactly this format:
+{"name": "Meal Name", "type": "breakfast/lunch/dinner", "calories": 400, "protein": 30, "icon": "🥗", "steps": "Brief 1 sentence instruction."}
+Do not add markdown formatting.`;
+
+    const aiResult = await callGeminiAPI(prompt);
+    
+    recContainer.innerHTML = `
+      <div style="background:var(--green-50);border-radius:var(--radius-md);padding:20px;margin-bottom:24px;border-left:4px solid var(--green-500);">
+        <p style="font-weight:600;color:var(--green-700);">💡 AI Generated Custom Meals</p>
+      </div>
+      <div class="recipes-grid">
+        ${aiResult.map(r => `
+          <div class="recipe-card">
+            <div class="recipe-card-header">${r.icon}</div>
+            <div class="recipe-card-body">
+              <h3>${r.name}</h3>
+              <div class="recipe-meta">
+                <span class="tag-${r.type || 'lunch'}">${capitalize(r.type || 'Lunch')}</span>
+                <span class="tag-calories">🔥 ${r.calories} kcal</span>
+                <span class="tag-vegetarian">💪 ${r.protein}g protein</span>
+              </div>
+              <p class="steps">${r.steps}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    console.error('Goal recommendation error:', err);
+    recContainer.innerHTML = `<p style="color:red;text-align:center;">Failed to generate recommendations. Please try again.</p>`;
+  }
 }
 
 // --- E. GROCERY LIST GENERATOR ---
@@ -1319,53 +1355,47 @@ function renderGroceryList() {
   `;
 }
 
-function generateGroceryList() {
-  // Categorize all ingredients from recipes
-  const categories = {
-    "🥩 Protein": new Set(),
-    "🥦 Vegetables": new Set(),
-    "🍎 Fruits": new Set(),
-    "🍚 Carbohydrates": new Set(),
-    "🥤 Drinks / Others": new Set()
-  };
+async function generateGroceryList() {
+  const container = document.getElementById('groceryResult');
+  const btn = document.querySelector('#groceryListContent .btn-primary');
+  
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+  btn.disabled = true;
 
-  // Simple keyword-based categorization
-  const proteinKeywords = ['chicken', 'salmon', 'shrimp', 'tofu', 'egg', 'yogurt', 'cheese', 'peanut butter'];
-  const vegKeywords = ['broccoli', 'spinach', 'kale', 'lettuce', 'tomato', 'cucumber', 'pepper', 'asparagus', 'onion', 'garlic', 'ginger', 'snow peas', 'carrot', 'sweet potato', 'avocado', 'mixed greens', 'chickpeas'];
-  const fruitKeywords = ['banana', 'berries', 'lemon', 'strawberries', 'apple', 'orange'];
-  const carbKeywords = ['rice', 'bread', 'oats', 'quinoa', 'tortilla', 'noodles', 'granola', 'pasta'];
+  try {
+    let planText = "a generic healthy diet";
+    if (window.currentWeeklyPlan) {
+       planText = "this specific meal plan: " + JSON.stringify(window.currentWeeklyPlan);
+    }
 
-  recipes.forEach(r => {
-    r.ingredients.forEach(ing => {
-      const lower = ing.toLowerCase();
-      if (proteinKeywords.some(k => lower.includes(k))) {
-        categories["🥩 Protein"].add(ing);
-      } else if (vegKeywords.some(k => lower.includes(k))) {
-        categories["🥦 Vegetables"].add(ing);
-      } else if (fruitKeywords.some(k => lower.includes(k))) {
-        categories["🍎 Fruits"].add(ing);
-      } else if (carbKeywords.some(k => lower.includes(k))) {
-        categories["🍚 Carbohydrates"].add(ing);
-      } else {
-        categories["🥤 Drinks / Others"].add(ing);
-      }
-    });
-  });
+    const prompt = `Generate a categorized grocery list for ${planText}. 
+Respond ONLY with a valid JSON object where keys are categories (like "🥩 Protein", "🥦 Vegetables", "🍎 Fruits", "🍚 Carbs", "🥤 Others") and values are arrays of strings (the ingredients).
+Do not add markdown formatting.`;
 
-  let html = '<div class="grocery-grid">';
-  for (const [cat, items] of Object.entries(categories)) {
-    if (items.size === 0) continue;
-    html += `
-      <div class="grocery-category">
-        <h4>${cat}</h4>
-        <ul>${[...items].map(i => `<li>${i}</li>`).join('')}</ul>
-      </div>
-    `;
+    const aiResult = await callGeminiAPI(prompt);
+
+    let html = '<div class="grocery-grid">';
+    for (const [cat, items] of Object.entries(aiResult)) {
+      if (!items || items.length === 0) continue;
+      html += `
+        <div class="grocery-category">
+          <h4 style="margin-bottom:12px;color:var(--primary);">${cat}</h4>
+          <ul style="list-style:none;padding:0;margin:0;">
+            ${items.map(item => `<li style="padding:6px 0;border-bottom:1px solid var(--border);color:var(--text-secondary);"><label style="display:flex;align-items:center;cursor:pointer;"><input type="checkbox" style="margin-right:10px;"> ${item}</label></li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+    showToast('🛒 Grocery list generated by AI!', 'success');
+  } catch (err) {
+    console.error('Grocery list error:', err);
+    showToast('Failed to generate grocery list. Try again.', 'error');
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> Generate Grocery List';
+    btn.disabled = false;
   }
-  html += '</div>';
-
-  document.getElementById('groceryResult').innerHTML = html;
-  showToast('🛒 Grocery list generated!', 'success');
 }
 
 // --- F. EXPORT REPORT ---
