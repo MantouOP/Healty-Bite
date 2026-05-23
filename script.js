@@ -192,6 +192,7 @@ const calorieDB = [
 // ──────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = "AIzaSyAU6X8AeNMKq4mlwHWOqYiJYPBoA5KDbCM";
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_14k3cE8qH9hE2eQ144"; // Replace with your real Stripe Payment Link
 
 /**
  * Generic helper function to call the Gemini API
@@ -1502,26 +1503,14 @@ function upgradeToPremium() {
     return;
   }
 
-  // Simulate payment processing with a brief delay
+  // Redirect to Stripe Payment Link
   const btn = document.getElementById('upgradeBtn');
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting to Secure Checkout...';
   btn.disabled = true;
 
-  setTimeout(async () => {
-    isPremium = true;
-    updatePremiumUI();
-
-    // Save premium status to Firestore
-    await saveUserData('profile', { name: userName, email: currentUser?.email || '', isPremium: true, rewardPoints });
-
-    // Show success modal
-    document.getElementById('paymentModal').classList.add('show');
-
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> Premium Active';
-    btn.disabled = false;
-
-    showToast('🎉 Welcome to Premium! All features unlocked!', 'success');
-  }, 1500);
+  // We append ?client_reference_id if we had a backend, but here we just redirect
+  // After payment, Stripe will redirect back to: https://healthy-bite-7019e.web.app/?payment=success
+  window.location.href = STRIPE_PAYMENT_LINK;
 }
 
 function closePaymentModal() {
@@ -1674,6 +1663,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize auth UI
   updateAuthUI();
+
+  // Check if we just returned from a successful Stripe Payment
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('payment') === 'success') {
+    // Wait slightly for Firebase Auth state to settle
+    setTimeout(async () => {
+      if (currentUser || isLoggedIn) {
+        isPremium = true;
+        updatePremiumUI();
+        await saveUserData('profile', { name: userName, email: currentUser?.email || '', isPremium: true, rewardPoints });
+        
+        // Clean up URL without refreshing the page
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        document.getElementById('paymentModal').classList.add('show');
+        showToast('🎉 Payment Successful! Welcome to Premium!', 'success');
+      } else {
+        // If they aren't logged in yet (auth state taking a moment), we still clean URL but ask them to log in to finalize
+        showToast('Payment detected! Please log in to finalize your upgrade.', 'info');
+      }
+    }, 2000);
+  }
 
   // Firebase Auth state is handled by onAuthStateChanged above
   // It will auto-detect if a user is already logged in from a previous session
