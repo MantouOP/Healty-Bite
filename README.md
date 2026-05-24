@@ -7,6 +7,8 @@
   *An AI-powered meal planning, calorie tracking, and nutrition platform.*
 
   [![Live Demo](https://img.shields.io/badge/Live_Demo-healthy--bite--7019e.web.app-brightgreen?style=for-the-badge)](https://healthy-bite-7019e.web.app)
+  
+  **Live Link:** [https://healthy-bite-7019e.web.app/](https://healthy-bite-7019e.web.app/)
 </div>
 
 <br>
