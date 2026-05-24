@@ -385,6 +385,18 @@ function navigate(page) {
   return false; // Prevent default link behavior
 }
 
+/**
+ * Navigate to a specific page and open a specific tab
+ */
+function navigateToTab(page, tabBtnId) {
+  navigate(page);
+  setTimeout(() => {
+    const btn = document.getElementById(tabBtnId);
+    if (btn) btn.click();
+  }, 50);
+  return false;
+}
+
 // ──────────────────────────────────────────────────────────────
 // 4. MOBILE MENU
 // ──────────────────────────────────────────────────────────────

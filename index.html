@@ -743,26 +743,26 @@
       <div>
         <h4>Features</h4>
         <ul>
-          <li><a href="#" onclick="navigate('recipes')">Recipes</a></li>
-          <li><a href="#" onclick="navigate('meal-planner')">Meal Planner</a></li>
-          <li><a href="#" onclick="navigate('calorie-tracker')">Calorie Tracker</a></li>
-          <li><a href="#" onclick="navigate('bmi-calculator')">BMI Calculator</a></li>
+          <li><a href="#" onclick="return navigate('recipes')">Recipes</a></li>
+          <li><a href="#" onclick="return navigate('meal-planner')">Meal Planner</a></li>
+          <li><a href="#" onclick="return navigate('calorie-tracker')">Calorie Tracker</a></li>
+          <li><a href="#" onclick="return navigate('bmi-calculator')">BMI Calculator</a></li>
         </ul>
       </div>
       <div>
         <h4>Premium</h4>
         <ul>
-          <li><a href="#" onclick="navigate('premium')">Pricing</a></li>
-          <li><a href="#" onclick="navigate('premium')">Nutrition Analysis</a></li>
-          <li><a href="#" onclick="navigate('premium')">Weekly Plans</a></li>
-          <li><a href="#" onclick="navigate('premium')">Reports</a></li>
+          <li><a href="#" onclick="return navigate('premium')">Pricing</a></li>
+          <li><a href="#" onclick="return navigateToTab('calorie-tracker', 'nutritionTab')">Nutrition Analysis</a></li>
+          <li><a href="#" onclick="return navigateToTab('meal-planner', 'weeklyPlanTab')">Weekly Plans</a></li>
+          <li><a href="#" onclick="return navigateToTab('calorie-tracker', 'reportTab')">Reports</a></li>
         </ul>
       </div>
       <div>
         <h4>Connect</h4>
         <ul>
-          <li><a href="#"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
-          <li><a href="#"><i class="fa-brands fa-instagram"></i> Instagram</a></li>
+          <li><a href="https://www.facebook.com/emmanuel.hengziteng" target="_blank"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
+          <li><a href="https://www.instagram.com/22_emmanuelhzt/" target="_blank"><i class="fa-brands fa-instagram"></i> Instagram</a></li>
         </ul>
       </div>
     </div>
@@ -784,6 +784,6 @@
 <script src="firebase-config.js?v=3"></script>
 
 <!-- Main App JavaScript -->
-<script src="script.js?v=8"></script>
+<script src="script.js?v=9"></script>
 </body>
 </html>
