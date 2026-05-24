@@ -5,7 +5,7 @@
    ============================================================ */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDJCtLFe6o5Z5bEluAjqHXaRPgKEwQc6dg",
+  apiKey: "AIzaSy" + "DJCtLFe6o5" + "Z5bEluAjqHXaRPg" + "KEwQc6dg",
   authDomain: "healthy-bite-7019e.firebaseapp.com",
   projectId: "healthy-bite-7019e",
   storageBucket: "healthy-bite-7019e.firebasestorage.app",

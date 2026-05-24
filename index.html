@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -50,6 +50,9 @@
       <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')" id="dashboardBtn" style="display:none;">
         <i class="fa-solid fa-gauge-high"></i> Dashboard
       </button>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('profile')" id="profileBtn" style="display:none;">
+        <i class="fa-solid fa-user"></i> Profile
+      </button>
       <button class="btn btn-ghost btn-sm" onclick="logoutUser()" id="logoutBtn" style="display:none;">
         <i class="fa-solid fa-right-from-bracket"></i> Logout
       </button>
@@ -80,18 +83,15 @@
           <i class="fa-brands fa-google" style="color:#4285F4;font-size:1.1rem;"></i>
           Continue with Google
         </button>
-        <button class="social-btn" onclick="socialLogin('Apple')">
-          <i class="fa-brands fa-apple" style="color:#000;font-size:1.2rem;"></i>
-          Continue with Apple
-        </button>
+
       </div>
 
       <div class="divider">or sign in with email</div>
 
-      <!-- Email / Password -->
+      <!-- Email / Username & Password -->
       <div class="form-group">
-        <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" placeholder="you@example.com">
+        <label for="loginEmail">Email or Username</label>
+        <input type="text" id="loginEmail" placeholder="you@example.com or username">
       </div>
       <div class="form-group">
         <label for="loginPassword">Password</label>
@@ -115,10 +115,7 @@
           <i class="fa-brands fa-google" style="color:#4285F4;font-size:1.1rem;"></i>
           Sign up with Google
         </button>
-        <button class="social-btn" onclick="socialLogin('Apple')">
-          <i class="fa-brands fa-apple" style="color:#000;font-size:1.2rem;"></i>
-          Sign up with Apple
-        </button>
+
       </div>
 
       <div class="divider">or sign up with email</div>
@@ -126,6 +123,10 @@
       <div class="form-group">
         <label for="signupName">Full Name</label>
         <input type="text" id="signupName" placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label for="signupUsername">Username</label>
+        <input type="text" id="signupUsername" placeholder="e.g. healthy_ninja">
       </div>
       <div class="form-group">
         <label for="signupEmail">Email</label>
@@ -287,6 +288,7 @@
       <i class="fa-solid fa-triangle-exclamation"></i> Filter Allergens:
     </div>
     <div class="allergy-filters" id="allergyFilters">
+      <button class="btn btn-outline btn-sm" onclick="clearAllergies()" style="border-radius: 100px; padding: 6px 14px; margin-right: 8px;">🚫 No Allergies</button>
       <label class="allergy-chip" onclick="toggleAllergyChip(this)">
         <input type="checkbox" value="peanuts"> 🥜 Peanuts
       </label>
@@ -302,6 +304,12 @@
       <label class="allergy-chip" onclick="toggleAllergyChip(this)">
         <input type="checkbox" value="gluten"> 🌾 Gluten
       </label>
+      
+      <!-- Custom Allergen Input -->
+      <div class="custom-allergen-input" style="display: inline-flex; gap: 4px; align-items: center; margin-left: 8px;">
+        <input type="text" id="customAllergen" placeholder="Other allergen..." style="padding: 6px 10px; border-radius: 100px; border: 1px solid var(--border); font-size: 0.85rem; width: 140px; outline: none;">
+        <button class="btn btn-primary btn-sm" onclick="addCustomAllergen()" style="padding: 6px 12px; border-radius: 100px;"><i class="fa-solid fa-plus"></i> Add</button>
+      </div>
     </div>
 
     <!-- Recipe cards rendered by JS -->
@@ -317,10 +325,9 @@
     <h2 class="section-title">🗓️ Meal Planner</h2>
     <p class="section-subtitle">Plan your meals, build healthy habits, and earn rewards!</p>
 
-    <!-- Tabs: Daily / Weekly (Premium) -->
+    <!-- Tabs: Weekly (Premium) -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('daily-plan', this)">📋 Daily Plan</button>
-      <button class="tab-btn" onclick="switchTab('weekly-plan', this)" id="weeklyPlanTab">
+      <button class="tab-btn active" onclick="switchTab('weekly-plan', this)" id="weeklyPlanTab">
         📅 Weekly Plan <span id="weeklyLock" style="margin-left:4px;">🔒</span>
       </button>
       <button class="tab-btn" onclick="switchTab('goal-meals', this)" id="goalMealsTab">
@@ -331,40 +338,9 @@
       </button>
     </div>
 
-    <!-- TAB: Daily Plan -->
-    <div class="tab-content active" id="daily-plan">
-      <div class="meal-planner-day">
-        <h3><i class="fa-solid fa-sun" style="color:var(--gold);"></i> Today's Meal Plan</h3>
-        <div class="meal-slot">
-          <span class="meal-slot-label">☀️ Breakfast</span>
-          <select id="planBreakfast" onchange="checkMealPlanComplete()">
-            <option value="">— Select Breakfast —</option>
-          </select>
-        </div>
-        <div class="meal-slot">
-          <span class="meal-slot-label">🌤️ Lunch</span>
-          <select id="planLunch" onchange="checkMealPlanComplete()">
-            <option value="">— Select Lunch —</option>
-          </select>
-        </div>
-        <div class="meal-slot">
-          <span class="meal-slot-label">🌙 Dinner</span>
-          <select id="planDinner" onchange="checkMealPlanComplete()">
-            <option value="">— Select Dinner —</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Reward Banner (shown when all 3 meals selected) -->
-      <div class="reward-banner" id="rewardBanner">
-        <h3>🎉 Great job!</h3>
-        <p>You completed your healthy meal plan today. Keep up the amazing work!</p>
-        <div class="reward-badge">🏆 +10 Points — Meal Plan Champion</div>
-      </div>
-    </div>
 
     <!-- TAB: Weekly Plan (Premium) -->
-    <div class="tab-content" id="weekly-plan">
+    <div class="tab-content active" id="weekly-plan">
       <div id="weeklyPlanContent"></div>
     </div>
 
@@ -407,14 +383,34 @@
             <h2><i class="fa-solid fa-plus" style="color:var(--primary);"></i> Add Food</h2>
             <div class="form-group autocomplete-wrapper">
               <label for="foodInput">Food Name</label>
-              <input type="text" id="foodInput" placeholder="Start typing… e.g. Chicken rice" oninput="showAutoComplete()" autocomplete="off">
+              <input type="text" id="foodInput" placeholder="Start typing… e.g. Chicken rice, Teh tarik" oninput="handleFoodInput()" autocomplete="off">
               <div class="autocomplete-list" id="autoCompleteList"></div>
             </div>
             <div class="form-group">
               <label for="foodQty">Servings</label>
-              <input type="number" id="foodQty" value="1" min="0.5" step="0.5">
+              <input type="number" id="foodQty" value="1" min="0.5" step="0.5" oninput="updateCaloriePreview()">
             </div>
-            <button class="btn btn-primary" onclick="addFoodToLog()" style="width:100%;">
+
+            <!-- AI Calorie Preview -->
+            <div class="calorie-preview" id="caloriePreview" style="display:none;">
+              <div class="calorie-preview-header">
+                <span class="calorie-preview-icon" id="previewIcon">🍽️</span>
+                <div>
+                  <div class="calorie-preview-name" id="previewName">—</div>
+                  <div class="calorie-preview-source" id="previewSource">AI Estimated</div>
+                </div>
+                <div class="calorie-preview-kcal" id="previewKcal">—</div>
+              </div>
+              <div class="calorie-preview-macros" id="previewMacros"></div>
+            </div>
+
+            <!-- AI Loading indicator -->
+            <div class="calorie-ai-loading" id="calorieAiLoading" style="display:none;">
+              <i class="fa-solid fa-wand-magic-sparkles fa-bounce" style="color:var(--primary);"></i>
+              <span>Estimating calories with AI…</span>
+            </div>
+
+            <button id="addFoodBtn" class="btn btn-primary" onclick="addFoodToLog()" style="width:100%;">
               <i class="fa-solid fa-plus"></i> Add to Log
             </button>
           </div>
@@ -591,6 +587,75 @@
 </section>
 
 <!-- ============================================================
+     SECTION: PROFILE
+     ============================================================ -->
+<section class="page-section" id="profile">
+  <div class="container">
+    <h2 class="section-title">👤 Your Profile</h2>
+    <p class="section-subtitle">Manage your personal details, dietary interests, and health goals.</p>
+
+    <div class="profile-layout">
+      <!-- Profile Picture -->
+      <div class="profile-sidebar">
+        <div class="profile-avatar-container">
+          <img src="https://ui-avatars.com/api/?name=User&background=2D6A4F&color=fff" alt="Profile Picture" id="profileAvatar" class="profile-avatar">
+          <div class="avatar-edit-overlay" onclick="document.getElementById('profilePicUpload').click()">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <input type="file" id="profilePicUpload" accept="image/*" style="display: none;" onchange="handleProfilePicChange(event)">
+        </div>
+        <h3 id="profileSidebarName" style="margin-top: 16px;">User Name</h3>
+        <p id="profileSidebarEmail" style="color: var(--text-secondary); font-size: 0.9rem;">user@example.com</p>
+      </div>
+
+      <!-- Profile Form -->
+      <div class="profile-main">
+        <div class="calc-form" style="max-width: 100%;">
+          <h3>Personal Details</h3>
+          <div class="form-group">
+            <label for="profileName">Full Name</label>
+            <input type="text" id="profileName" placeholder="Your Name">
+          </div>
+          <div class="form-group">
+            <label for="profileBio">Bio</label>
+            <textarea id="profileBio" rows="3" placeholder="Tell us a bit about your health journey..."></textarea>
+          </div>
+
+          <h3 style="margin-top: 32px;">Interests & Dietary Goals</h3>
+          <div style="margin-bottom:8px;font-weight:600;font-size:.9rem;color:var(--text-secondary);">
+            Select your preferences:
+          </div>
+          <div class="allergy-filters" id="profileInterests">
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="weight-loss"> 🔥 Weight Loss
+            </label>
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="muscle-gain"> 💪 Muscle Gain
+            </label>
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="vegan"> 🌿 Vegan
+            </label>
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="keto"> 🥩 Keto
+            </label>
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="gluten-free"> 🌾 Gluten-Free
+            </label>
+            <label class="allergy-chip" onclick="toggleAllergyChip(this)">
+              <input type="checkbox" value="high-protein"> 🥚 High Protein
+            </label>
+          </div>
+
+          <button class="btn btn-primary btn-lg" onclick="saveProfileData()" style="width: 100%; margin-top: 24px;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Profile
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
      SECTION: DASHBOARD
      ============================================================ -->
 <section class="page-section" id="dashboard">
@@ -718,9 +783,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <!-- Firebase Configuration -->
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=3"></script>
 
 <!-- Main App JavaScript -->
-<script src="script.js"></script>
+<script src="script.js?v=7"></script>
 </body>
 </html>

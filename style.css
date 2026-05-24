@@ -888,6 +888,88 @@ button, input, select, textarea {
 .autocomplete-item:hover { background: var(--green-50); }
 .autocomplete-item .ac-cal { color: var(--text-muted); font-size: .8rem; }
 
+/* AI Calorie Preview */
+.calorie-preview {
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+  border: 1.5px solid var(--green-200);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+  animation: previewSlideIn .3s ease;
+}
+@keyframes previewSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.calorie-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.calorie-preview-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+.calorie-preview-name {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--text-primary);
+}
+.calorie-preview-source {
+  font-size: .75rem;
+  color: var(--green-600);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.calorie-preview-source::before {
+  content: '✨';
+  font-size: .7rem;
+}
+.calorie-preview-kcal {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.calorie-preview-macros {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.macro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.macro-badge.protein { background: #ede9fe; color: #7c3aed; }
+.macro-badge.carbs   { background: #fef3c7; color: #92400e; }
+.macro-badge.fat     { background: #fee2e2; color: #991b1b; }
+.macro-badge.sugar   { background: #fce7f3; color: #9d174d; }
+.macro-badge.fiber   { background: #d1fae5; color: var(--green-700); }
+
+.calorie-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--green-50);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: .88rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  animation: previewSlideIn .3s ease;
+}
+
 /* =============== MEAL PLANNER =============== */
 .meal-planner-day {
   background: var(--white);
@@ -921,7 +1003,7 @@ button, input, select, textarea {
   text-transform: uppercase;
   letter-spacing: .5px;
 }
-.meal-slot select {
+.meal-slot input {
   flex: 1;
   padding: 10px 16px;
   border: 1.5px solid var(--border);
@@ -929,10 +1011,26 @@ button, input, select, textarea {
   font-size: .9rem;
   transition: var(--transition);
   background: var(--white);
+  outline: none;
 }
-.meal-slot select:focus {
+.meal-slot input:focus {
   border-color: var(--green-400);
   box-shadow: 0 0 0 3px rgba(34,197,94,.15);
+}
+
+.rating-result {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+.rating-result .stars {
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin-bottom: 8px;
 }
 
 /* Reward banner */
@@ -1082,6 +1180,74 @@ button, input, select, textarea {
   font-size: .85rem;
   color: rgba(255,255,255,.6);
   line-height: 1.6;
+}
+
+/* =============== PROFILE =============== */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+.profile-sidebar {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.profile-avatar-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid var(--green-100);
+}
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.profile-avatar-container:hover .avatar-edit-overlay {
+  opacity: 1;
+}
+.profile-main {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+#profileBio {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  font-family: inherit;
+}
+#profileBio:focus {
+  border-color: var(--green-400);
+  outline: none;
 }
 
 /* =============== DASHBOARD =============== */

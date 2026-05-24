@@ -192,7 +192,7 @@ const calorieDB = [
 // ──────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = "AIzaSyAU6X8AeNMKq4mlwHWOqYiJYPBoA5KDbCM";
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_14k3cE8qH9hE2eQ144"; // Replace with your real Stripe Payment Link
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_aFafZjco49fLa5T8a79bO00"; // Replace with your real Stripe Payment Link
 
 /**
  * Generic helper function to call the Gemini API
@@ -202,7 +202,7 @@ async function callGeminiAPI(prompt) {
   if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !GEMINI_API_KEY) {
     throw new Error("Gemini API Key is missing.");
   }
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -213,12 +213,15 @@ async function callGeminiAPI(prompt) {
   const data = await response.json();
   const aiText = data.candidates[0].content.parts[0].text.trim();
   
-  // Try to parse as JSON if it looks like JSON
-  let cleanStr = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Try to extract JSON from the response text
   try {
-    return JSON.parse(cleanStr);
+    const jsonMatch = aiText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return JSON.parse(aiText);
   } catch (e) {
-    return cleanStr; // Return raw text if not JSON
+    return aiText; // Return raw text if not JSON
   }
 }
 
@@ -227,9 +230,13 @@ let isLoggedIn = false;      // Login state — managed by Firebase Auth
 let userName = "User";       // User's display name
 let currentPage = "home";    // Current visible SPA section
 let currentUser = null;      // Firebase Auth user object
+let userProfilePic = "";     // Profile picture data URL or standard URL
+let userBio = "";            // User bio text
+let userInterests = [];      // Array of dietary interests/goals
 
 // Food log for calorie tracker
 let foodLog = [];
+var globalToastTimeout;  // Toast notification timeout handle
 
 // Dashboard state
 let userBMI = null;
@@ -282,7 +289,24 @@ async function loadUserData() {
       isPremium = data.profile.isPremium || false;
       rewardPoints = data.profile.rewardPoints || 0;
       userName = data.profile.name || userName;
+      userProfilePic = data.profile.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2D6A4F&color=fff`;
+      userBio = data.profile.bio || "";
+      userInterests = data.profile.interests || [];
     }
+
+    // Populate Profile Form UI
+    document.getElementById('profileName').value = userName;
+    document.getElementById('profileBio').value = userBio;
+    document.getElementById('profileSidebarName').textContent = userName;
+    document.getElementById('profileSidebarEmail').textContent = currentUser.email;
+    document.getElementById('profileAvatar').src = userProfilePic;
+
+    // Check interests checkboxes
+    document.querySelectorAll('#profileInterests input[type="checkbox"]').forEach(cb => {
+      cb.checked = userInterests.includes(cb.value);
+      if (cb.checked) cb.parentElement.classList.add('active');
+      else cb.parentElement.classList.remove('active');
+    });
 
     // Restore food log
     if (data.foodLog && Array.isArray(data.foodLog)) {
@@ -301,10 +325,7 @@ async function loadUserData() {
       userWaterGoal = data.waterGoal.litres;
     }
 
-    // Restore meal plan completion
-    if (data.mealPlan) {
-      mealPlanComplete = data.mealPlan.complete || false;
-    }
+
 
     // Apply premium UI
     updatePremiumUI();
@@ -348,6 +369,18 @@ function navigate(page) {
 
   // Update dashboard when navigating to it
   if (page === 'dashboard') updateDashboard();
+  
+  // Handle Meal Planner (All remaining features are Premium)
+  if (page === 'meal-planner') {
+    if (!isPremium) {
+      showToast('🔒 The Meal Planner is a Premium feature. Upgrade to unlock!', 'error');
+      navigate('premium');
+      return false;
+    } else {
+      // If premium, initialize the default active tab (Weekly Plan)
+      renderWeeklyPlan();
+    }
+  }
 
   return false; // Prevent default link behavior
 }
@@ -419,27 +452,39 @@ function toggleAuthForm() {
  * Uses signInWithEmailAndPassword() from Firebase.
  */
 async function loginUser() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const input = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value.trim();
 
-  if (!email || !password) {
-    showToast('Please enter both email and password.', 'error');
+  if (!input || !password) {
+    showToast('Please enter both Email/Username and password.', 'error');
     return;
   }
 
   try {
     showToast('Signing in...', 'info');
-    await auth.signInWithEmailAndPassword(email, password);
+    let emailToLogin = input;
+    
+    // If input does not look like an email, assume it's a username
+    if (!input.includes('@')) {
+      const usernameDoc = await db.collection('usernames').doc(input).get();
+      if (!usernameDoc.exists) {
+        showToast('No account found with this username.', 'error');
+        return;
+      }
+      emailToLogin = usernameDoc.data().email;
+    }
+    
+    await auth.signInWithEmailAndPassword(emailToLogin, password);
     // onAuthStateChanged will handle the rest
     closeAuthModal();
   } catch (error) {
     console.error('Login error:', error);
     const messages = {
-      'auth/user-not-found': 'No account found with this email. Please sign up.',
+      'auth/user-not-found': 'No account found. Please sign up.',
       'auth/wrong-password': 'Incorrect password. Please try again.',
       'auth/invalid-email': 'Please enter a valid email address.',
       'auth/too-many-requests': 'Too many attempts. Please try again later.',
-      'auth/invalid-credential': 'Invalid email or password. Please try again.'
+      'auth/invalid-credential': 'Invalid username/email or password.'
     };
     showToast(messages[error.code] || error.message, 'error');
   }
@@ -451,10 +496,11 @@ async function loginUser() {
  */
 async function signupUser() {
   const name = document.getElementById('signupName').value.trim();
+  const username = document.getElementById('signupUsername').value.trim().toLowerCase();
   const email = document.getElementById('signupEmail').value.trim();
   const password = document.getElementById('signupPassword').value.trim();
 
-  if (!name || !email || !password) {
+  if (!name || !username || !email || !password) {
     showToast('Please fill in all fields.', 'error');
     return;
   }
@@ -463,17 +509,36 @@ async function signupUser() {
     showToast('Password must be at least 6 characters.', 'error');
     return;
   }
+  
+  if (/\\s/.test(username) || username.includes('@')) {
+    showToast('Username cannot contain spaces or @ symbols.', 'error');
+    return;
+  }
 
   try {
+    showToast('Checking username...', 'info');
+    // Check if username document exists
+    const usernameDoc = await db.collection('usernames').doc(username).get();
+    if (usernameDoc.exists) {
+      showToast('Username is already taken. Please choose another.', 'error');
+      return;
+    }
+
     showToast('Creating your account...', 'info');
     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
     // Set the user's display name
     await userCredential.user.updateProfile({ displayName: name });
     userName = name;
 
+    // Save username mapping
+    await db.collection('usernames').doc(username).set({
+      uid: userCredential.user.uid,
+      email: email
+    });
+
     // Create initial Firestore document for the new user
     await db.collection('users').doc(userCredential.user.uid).set({
-      profile: { name: name, email: email, isPremium: false, rewardPoints: 0 },
+      profile: { name: name, username: username, email: email, isPremium: false, rewardPoints: 0 },
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -598,6 +663,7 @@ function updateAuthUI() {
   document.getElementById('loginBtn').style.display = isLoggedIn ? 'none' : '';
   document.getElementById('signupBtn').style.display = isLoggedIn ? 'none' : '';
   document.getElementById('dashboardBtn').style.display = isLoggedIn ? '' : 'none';
+  document.getElementById('profileBtn').style.display = isLoggedIn ? '' : 'none';
   document.getElementById('logoutBtn').style.display = isLoggedIn ? '' : 'none';
 }
 
@@ -713,6 +779,17 @@ function calculateWaterIntake() {
 // 8. CALORIE TRACKER
 // ──────────────────────────────────────────────────────────────
 
+// --- AI Calorie Estimation State ---
+let aiCalorieCache = {};       // Cache AI results: { "nasi lemak": { calories, icon, protein, carbs, fat, ... } }
+let aiCalorieDebounceTimer = null;
+let currentAiEstimate = null;  // Currently displayed AI estimate
+
+/** Master handler for food input — autocomplete + AI calorie estimation */
+function handleFoodInput() {
+  showAutoComplete();
+  debounceAICalorieLookup();
+}
+
 /** Show autocomplete suggestions as user types food name */
 function showAutoComplete() {
   const input = document.getElementById('foodInput').value.toLowerCase().trim();
@@ -744,6 +821,8 @@ function showAutoComplete() {
 function selectFood(name) {
   document.getElementById('foodInput').value = name;
   document.getElementById('autoCompleteList').classList.remove('show');
+  // Trigger AI calorie lookup for the selected food
+  debounceAICalorieLookup();
 }
 
 // Close autocomplete when clicking outside
@@ -752,6 +831,134 @@ document.addEventListener('click', (e) => {
     document.getElementById('autoCompleteList').classList.remove('show');
   }
 });
+
+/** Debounce AI calorie lookup — waits 600ms after user stops typing */
+function debounceAICalorieLookup() {
+  clearTimeout(aiCalorieDebounceTimer);
+  const foodName = document.getElementById('foodInput').value.trim();
+
+  if (!foodName || foodName.length < 2) {
+    hideCaloriePreview();
+    return;
+  }
+
+  // Check local cache first
+  const cacheKey = foodName.toLowerCase();
+  if (aiCalorieCache[cacheKey]) {
+    currentAiEstimate = aiCalorieCache[cacheKey];
+    showCaloriePreview(currentAiEstimate);
+    return;
+  }
+
+  // Check local calorieDB for instant result
+  const localMatch = calorieDB.find(f => f.name.toLowerCase() === cacheKey);
+  if (localMatch) {
+    currentAiEstimate = {
+      name: localMatch.name,
+      calories: localMatch.calories,
+      icon: localMatch.icon,
+      protein: null, carbs: null, fat: null, sugar: null, fiber: null,
+      source: 'database'
+    };
+    showCaloriePreview(currentAiEstimate);
+    return;
+  }
+
+  // Show loading, then call AI after debounce
+  aiCalorieDebounceTimer = setTimeout(() => fetchAICalories(foodName), 600);
+}
+
+/** Fetch calorie info from Gemini AI */
+async function fetchAICalories(foodName) {
+  const loadingEl = document.getElementById('calorieAiLoading');
+  const previewEl = document.getElementById('caloriePreview');
+
+  // Show loading, hide old preview
+  loadingEl.style.display = 'flex';
+  previewEl.style.display = 'none';
+
+  try {
+    const prompt = `You are a nutrition expert. Estimate the nutritional information for 1 standard serving of "${foodName}".
+Respond ONLY with a valid JSON object in this exact format (no markdown, no extra text):
+{"calories": 250, "icon": "🍔", "protein": 12, "carbs": 30, "fat": 10, "sugar": 5, "fiber": 3}
+- calories in kcal
+- protein, carbs, fat, sugar, fiber in grams
+- icon should be a single relevant food emoji
+If it's a beverage, use a drink emoji. Be accurate for typical serving sizes.`;
+
+    const aiResult = await callGeminiAPI(prompt);
+
+    if (aiResult && typeof aiResult === 'object' && aiResult.calories) {
+      const estimate = {
+        name: foodName,
+        calories: Math.round(aiResult.calories),
+        icon: aiResult.icon || '🍽️',
+        protein: aiResult.protein || 0,
+        carbs: aiResult.carbs || 0,
+        fat: aiResult.fat || 0,
+        sugar: aiResult.sugar || null,
+        fiber: aiResult.fiber || null,
+        source: 'ai'
+      };
+
+      // Cache the result
+      aiCalorieCache[foodName.toLowerCase()] = estimate;
+      currentAiEstimate = estimate;
+
+      // Only show if input hasn't changed
+      const currentInput = document.getElementById('foodInput').value.trim();
+      if (currentInput.toLowerCase() === foodName.toLowerCase()) {
+        showCaloriePreview(estimate);
+      }
+    } else {
+      hideCaloriePreview();
+    }
+  } catch (err) {
+    console.error('AI calorie estimation failed:', err);
+    hideCaloriePreview();
+  } finally {
+    loadingEl.style.display = 'none';
+  }
+}
+
+/** Display the calorie preview card */
+function showCaloriePreview(estimate) {
+  const previewEl = document.getElementById('caloriePreview');
+  const qty = parseFloat(document.getElementById('foodQty').value) || 1;
+
+  document.getElementById('previewIcon').textContent = estimate.icon;
+  document.getElementById('previewName').textContent = estimate.name;
+  document.getElementById('previewSource').textContent =
+    estimate.source === 'ai' ? 'AI Estimated' : 'From Database';
+  document.getElementById('previewKcal').textContent = `${Math.round(estimate.calories * qty)} kcal`;
+
+  // Build macro badges
+  const macrosEl = document.getElementById('previewMacros');
+  let macrosHTML = '';
+  if (estimate.protein != null) macrosHTML += `<span class="macro-badge protein">🥩 ${Math.round(estimate.protein * qty)}g protein</span>`;
+  if (estimate.carbs != null) macrosHTML += `<span class="macro-badge carbs">🌾 ${Math.round(estimate.carbs * qty)}g carbs</span>`;
+  if (estimate.fat != null) macrosHTML += `<span class="macro-badge fat">🧈 ${Math.round(estimate.fat * qty)}g fat</span>`;
+  if (estimate.sugar != null) macrosHTML += `<span class="macro-badge sugar">🍬 ${Math.round(estimate.sugar * qty)}g sugar</span>`;
+  if (estimate.fiber != null) macrosHTML += `<span class="macro-badge fiber">🥦 ${Math.round(estimate.fiber * qty)}g fiber</span>`;
+  macrosEl.innerHTML = macrosHTML;
+
+  previewEl.style.display = 'block';
+  document.getElementById('calorieAiLoading').style.display = 'none';
+}
+
+/** Hide the calorie preview card */
+function hideCaloriePreview() {
+  document.getElementById('caloriePreview').style.display = 'none';
+  document.getElementById('calorieAiLoading').style.display = 'none';
+  currentAiEstimate = null;
+}
+
+/** Update calorie preview when servings change */
+function updateCaloriePreview() {
+  if (currentAiEstimate) {
+    showCaloriePreview(currentAiEstimate);
+  }
+}
 
 /** Add selected food to the daily log */
 async function addFoodToLog() {
@@ -764,22 +971,39 @@ async function addFoodToLog() {
     return;
   }
 
-  // Look up calories in database first (fast path)
-  const found = calorieDB.find(f => f.name.toLowerCase() === foodName.toLowerCase());
-  
   let calories, icon;
+
+  // Use pre-fetched AI estimate if available
+  if (currentAiEstimate && currentAiEstimate.name.toLowerCase() === foodName.toLowerCase()) {
+    calories = Math.round(currentAiEstimate.calories * qty);
+    icon = currentAiEstimate.icon;
+    const macros = {
+      protein: Math.round((currentAiEstimate.protein || 0) * qty),
+      carbs: Math.round((currentAiEstimate.carbs || 0) * qty),
+      fat: Math.round((currentAiEstimate.fat || 0) * qty)
+    };
+    hideCaloriePreview();
+    finishAddingFood(foodName, qty, calories, icon, macros);
+    return;
+  }
+
+  // Check local calorieDB (fast path)
+  const found = calorieDB.find(f => f.name.toLowerCase() === foodName.toLowerCase());
 
   if (found) {
     calories = Math.round(found.calories * qty);
     icon = found.icon;
-    finishAddingFood(foodName, qty, calories, icon);
+    const macros = { protein: 0, carbs: 0, fat: 0 }; // Fallback for local DB
+    hideCaloriePreview();
+    finishAddingFood(foodName, qty, calories, icon, macros);
   } else {
-    // If not found, use Gemini AI to estimate
+    // If not already fetched, call Gemini AI now
     if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE" || !GEMINI_API_KEY) {
       showToast('AI API Key is missing. Using default 200 kcal.', 'warning');
       calories = Math.round(200 * qty);
       icon = "🍽️";
-      finishAddingFood(foodName, qty, calories, icon);
+      hideCaloriePreview();
+      finishAddingFood(foodName, qty, calories, icon, { protein: 0, carbs: 0, fat: 0 });
       return;
     }
 
@@ -788,20 +1012,41 @@ async function addFoodToLog() {
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Estimating...';
       btn.disabled = true;
 
-      const prompt = `Estimate the calories for 1 serving of '${foodName}'. Respond ONLY with a valid JSON object in this exact format: {"calories": 250, "icon": "🍔"}. Do not include markdown formatting or any other text.`;
-      
+      const prompt = `You are a nutrition expert. Estimate the nutritional information for 1 standard serving of "${foodName}".
+Respond ONLY with a valid JSON object in this exact format (no markdown, no extra text):
+{"calories": 250, "icon": "🍔", "protein": 12, "carbs": 30, "fat": 10, "sugar": 5, "fiber": 3}`;
+
       const aiResult = await callGeminiAPI(prompt);
-      
+
       calories = Math.round(aiResult.calories * qty);
       icon = aiResult.icon || "🍽️";
 
-      finishAddingFood(foodName, qty, calories, icon);
+      // Cache it
+      aiCalorieCache[foodName.toLowerCase()] = {
+        name: foodName,
+        calories: aiResult.calories,
+        icon: icon,
+        protein: aiResult.protein || 0,
+        carbs: aiResult.carbs || 0,
+        fat: aiResult.fat || 0,
+        source: 'ai'
+      };
+
+      const macros = {
+        protein: Math.round((aiResult.protein || 0) * qty),
+        carbs: Math.round((aiResult.carbs || 0) * qty),
+        fat: Math.round((aiResult.fat || 0) * qty)
+      };
+
+      hideCaloriePreview();
+      finishAddingFood(foodName, qty, calories, icon, macros);
     } catch (err) {
       console.error('AI Estimation error:', err);
       showToast('AI estimation failed. Using default 200 kcal.', 'error');
       calories = Math.round(200 * qty);
       icon = "🍽️";
-      finishAddingFood(foodName, qty, calories, icon);
+      hideCaloriePreview();
+      finishAddingFood(foodName, qty, calories, icon, { protein: 0, carbs: 0, fat: 0 });
     } finally {
       // Restore button
       btn.innerHTML = '<i class="fa-solid fa-plus"></i> Add to Log';
@@ -810,9 +1055,9 @@ async function addFoodToLog() {
   }
 }
 
-function finishAddingFood(foodName, qty, calories, icon) {
+function finishAddingFood(foodName, qty, calories, icon, macros = null) {
   // Add to log
-  foodLog.push({ name: foodName, qty, calories, icon, id: Date.now() });
+  foodLog.push({ name: foodName, qty, calories, icon, id: Date.now(), macros: macros || { protein: 0, carbs: 0, fat: 0 } });
 
   // Clear input
   document.getElementById('foodInput').value = '';
@@ -820,7 +1065,7 @@ function finishAddingFood(foodName, qty, calories, icon) {
 
   // Re-render log + save to Firestore
   renderFoodLog();
-  saveUserData('foodLog', foodLog.map(f => ({ name: f.name, qty: f.qty, calories: f.calories, icon: f.icon, id: f.id })));
+  saveUserData('foodLog', foodLog.map(f => ({ name: f.name, qty: f.qty, calories: f.calories, icon: f.icon, id: f.id, macros: f.macros || { protein: 0, carbs: 0, fat: 0 } })));
   showToast(`Added ${foodName} (${calories} kcal)`, 'success');
 }
 
@@ -828,7 +1073,7 @@ function finishAddingFood(foodName, qty, calories, icon) {
 function removeFood(id) {
   foodLog = foodLog.filter(f => f.id !== id);
   renderFoodLog();
-  saveUserData('foodLog', foodLog.map(f => ({ name: f.name, qty: f.qty, calories: f.calories, icon: f.icon, id: f.id })));
+  saveUserData('foodLog', foodLog.map(f => ({ name: f.name, qty: f.qty, calories: f.calories, icon: f.icon, id: f.id, macros: f.macros || { protein: 0, carbs: 0, fat: 0 } })));
 }
 
 /** Render the food log list and update total calories */
@@ -949,57 +1194,69 @@ function toggleAllergyChip(chip) {
   renderRecipes();
 }
 
+/** Add custom allergen from user input */
+function addCustomAllergen() {
+  const inputEl = document.getElementById('customAllergen');
+  const val = inputEl.value.trim().toLowerCase();
+  
+  if (!val) return;
+  
+  // Check if it already exists to prevent duplicates
+  const existingValues = Array.from(document.querySelectorAll('#allergyFilters input[type="checkbox"]')).map(cb => cb.value);
+  if (existingValues.includes(val)) {
+    showToast('This allergen is already in the list.', 'info');
+    inputEl.value = '';
+    return;
+  }
+  
+  // Create new chip label
+  const label = document.createElement('label');
+  label.className = 'allergy-chip active';
+  label.onclick = function() { toggleAllergyChip(this); };
+  
+  // Create checkbox input
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.value = val;
+  checkbox.checked = true;
+  
+  // Append elements
+  label.appendChild(checkbox);
+  label.appendChild(document.createTextNode(' 🏷️ ' + val.charAt(0).toUpperCase() + val.slice(1)));
+  
+  // Insert before the custom input container
+  const container = document.getElementById('allergyFilters');
+  const customInputContainer = document.querySelector('.custom-allergen-input');
+  container.insertBefore(label, customInputContainer);
+  
+  // Update active allergies array
+  activeAllergies.push(val);
+  
+  // Clear input and re-filter
+  inputEl.value = '';
+  renderRecipes();
+}
+
+/** Clear all selected allergens */
+function clearAllergies() {
+  document.querySelectorAll('.allergy-chip').forEach(chip => {
+    chip.classList.remove('active');
+    const checkbox = chip.querySelector('input');
+    if (checkbox) checkbox.checked = false;
+  });
+  
+  activeAllergies = [];
+  renderRecipes();
+}
+
 /** Trigger recipe refilter from meal type dropdown */
 function filterRecipes() {
   renderRecipes();
 }
 
-// ──────────────────────────────────────────────────────────────
-// 10. MEAL PLANNER — Daily Plan + Reward
-// ──────────────────────────────────────────────────────────────
 
-/** Populate meal plan dropdowns with recipes of matching types */
-function populateMealPlanDropdowns() {
-  const breakfasts = recipes.filter(r => r.type === 'breakfast');
-  const lunches = recipes.filter(r => r.type === 'lunch');
-  const dinners = recipes.filter(r => r.type === 'dinner');
 
-  const bSelect = document.getElementById('planBreakfast');
-  const lSelect = document.getElementById('planLunch');
-  const dSelect = document.getElementById('planDinner');
 
-  // Keep first placeholder option, add recipes
-  breakfasts.forEach(r => {
-    bSelect.innerHTML += `<option value="${r.id}">${r.icon} ${r.name} (${r.calories} kcal)</option>`;
-  });
-  lunches.forEach(r => {
-    lSelect.innerHTML += `<option value="${r.id}">${r.icon} ${r.name} (${r.calories} kcal)</option>`;
-  });
-  dinners.forEach(r => {
-    dSelect.innerHTML += `<option value="${r.id}">${r.icon} ${r.name} (${r.calories} kcal)</option>`;
-  });
-}
-
-/** Check if user completed all 3 meals — show reward */
-function checkMealPlanComplete() {
-  const b = document.getElementById('planBreakfast').value;
-  const l = document.getElementById('planLunch').value;
-  const d = document.getElementById('planDinner').value;
-
-  if (b && l && d) {
-    document.getElementById('rewardBanner').classList.add('show');
-    if (!mealPlanComplete) {
-      // Only award points once per completion
-      mealPlanComplete = true;
-      rewardPoints += 10;
-      saveUserData('profile', { name: userName, email: currentUser?.email || '', isPremium, rewardPoints });
-      saveUserData('mealPlan', { breakfast: b, lunch: l, dinner: d, complete: true });
-      showToast('🎉 Meal plan completed! +10 Points!', 'success');
-    }
-  } else {
-    document.getElementById('rewardBanner').classList.remove('show');
-  }
-}
 
 // ──────────────────────────────────────────────────────────────
 // 11. TABS — Generic tab switcher
@@ -1217,6 +1474,9 @@ async function renderNutritionReport() {
 
   const totalCal = foodLog.reduce((sum, f) => sum + f.calories, 0);
   const avgCal = Math.round(totalCal / foodLog.length);
+  const totalProtein = foodLog.reduce((sum, f) => sum + (f.macros && f.macros.protein ? f.macros.protein : 0), 0);
+  const totalCarbs = foodLog.reduce((sum, f) => sum + (f.macros && f.macros.carbs ? f.macros.carbs : 0), 0);
+  const totalFat = foodLog.reduce((sum, f) => sum + (f.macros && f.macros.fat ? f.macros.fat : 0), 0);
 
   container.innerHTML = `
     <div style="text-align:center; padding:40px;">
@@ -1227,8 +1487,8 @@ async function renderNutritionReport() {
 
   try {
     const foodStr = foodLog.map(f => `${f.qty}x ${f.name} (${f.calories} kcal)`).join(', ');
-    const prompt = `Analyze this daily food log: ${foodStr}. Total calories: ${totalCal}.
-Provide 3 personalized, short, actionable suggestions to improve nutrition based on this data.
+    const prompt = `Analyze this daily food log: ${foodStr}. Total calories: ${totalCal}. Total Protein: ${totalProtein}g. Total Carbs: ${totalCarbs}g. Total Fat: ${totalFat}g.
+Provide 3 personalized, short, actionable suggestions to improve nutrition based on this macro data.
 Respond ONLY with a JSON string array exactly like this: ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
 Do not add markdown formatting.`;
 
@@ -1242,9 +1502,10 @@ Do not add markdown formatting.`;
         <div class="report-card">
           <h3><i class="fa-solid fa-chart-bar" style="color:var(--primary);"></i> Nutrition Summary</h3>
           <div class="report-stat"><span class="report-stat-label">Total Calories</span><span class="report-stat-value">${totalCal} kcal</span></div>
-          <div class="report-stat"><span class="report-stat-label">Average per Item</span><span class="report-stat-value">${avgCal} kcal</span></div>
+          <div class="report-stat"><span class="report-stat-label">Protein</span><span class="report-stat-value">${totalProtein} g</span></div>
+          <div class="report-stat"><span class="report-stat-label">Carbs</span><span class="report-stat-value">${totalCarbs} g</span></div>
+          <div class="report-stat"><span class="report-stat-label">Fat</span><span class="report-stat-value">${totalFat} g</span></div>
           <div class="report-stat"><span class="report-stat-label">Items Logged</span><span class="report-stat-value">${foodLog.length}</span></div>
-          <p style="font-size:0.85rem;color:var(--text-muted);margin-top:16px;">*Macros omitted for simplicity in dynamic report.</p>
         </div>
         <div>
           <div class="report-card">
@@ -1572,24 +1833,7 @@ function updateDashboard() {
   // Water
   document.getElementById('dashWater').textContent = userWaterGoal ? `${userWaterGoal}` : '—';
 
-  // Meal Plan
-  const b = document.getElementById('planBreakfast');
-  const l = document.getElementById('planLunch');
-  const d = document.getElementById('planDinner');
-  const mealPlanEl = document.getElementById('dashMealPlan');
 
-  if (b && b.value && l && l.value && d && d.value) {
-    const bName = b.options[b.selectedIndex].text;
-    const lName = l.options[l.selectedIndex].text;
-    const dName = d.options[d.selectedIndex].text;
-    mealPlanEl.innerHTML = `
-      <p style="margin:6px 0;font-size:.88rem;">☀️ <strong>Breakfast:</strong> ${bName}</p>
-      <p style="margin:6px 0;font-size:.88rem;">🌤️ <strong>Lunch:</strong> ${lName}</p>
-      <p style="margin:6px 0;font-size:.88rem;">🌙 <strong>Dinner:</strong> ${dName}</p>
-    `;
-  } else {
-    mealPlanEl.innerHTML = '<p>No meals planned yet.</p>';
-  }
 
   // Rewards
   document.getElementById('dashPoints').textContent = rewardPoints;
@@ -1618,8 +1862,6 @@ function updateDashboard() {
 // 15. TOAST NOTIFICATION
 // ──────────────────────────────────────────────────────────────
 
-let toastTimeout;
-
 /** Show a toast notification.
  *  @param {string} message — Text to display
  *  @param {'success'|'error'|'info'} type — Toast style
@@ -1629,10 +1871,97 @@ function showToast(message, type = 'info') {
   toast.className = `toast show ${type}`;
   toast.innerHTML = `<span>${message}</span>`;
 
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => {
+  clearTimeout(globalToastTimeout);
+  globalToastTimeout = setTimeout(() => {
     toast.classList.remove('show');
   }, 3500);
+}
+
+// ──────────────────────────────────────────────────────────────
+// 15B. PROFILE MANAGEMENT
+// ──────────────────────────────────────────────────────────────
+
+/** Handle profile picture selection and convert to Base64 data URL */
+function handleProfilePicChange(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validate file size (e.g., < 500KB) to avoid exceeding Firestore doc limits
+  if (file.size > 500 * 1024) {
+    showToast('Image too large. Please select an image under 500KB.', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    document.getElementById('profileAvatar').src = dataUrl;
+    userProfilePic = dataUrl; // Keep in memory, saved when 'Save Profile' is clicked
+  };
+  reader.readAsDataURL(file);
+}
+
+/** Save all profile form fields to Firestore */
+async function saveProfileData() {
+  if (!currentUser) {
+    showToast('You must be logged in to save your profile.', 'error');
+    return;
+  }
+
+  const newName = document.getElementById('profileName').value.trim();
+  const newBio = document.getElementById('profileBio').value.trim();
+  
+  // Collect checked interests
+  const interestsNodes = document.querySelectorAll('#profileInterests input[type="checkbox"]:checked');
+  const interests = Array.from(interestsNodes).map(cb => cb.value);
+
+  if (!newName) {
+    showToast('Name cannot be empty.', 'error');
+    return;
+  }
+
+  try {
+    const btn = document.querySelector('#profile .btn-primary');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    btn.disabled = true;
+
+    // Update Firebase Auth profile
+    if (newName !== userName) {
+      await currentUser.updateProfile({ displayName: newName });
+    }
+
+    // Prepare profile object to save to Firestore
+    const profileData = {
+      name: newName,
+      email: currentUser.email,
+      bio: newBio,
+      interests: interests,
+      profilePic: userProfilePic,
+      isPremium: isPremium,
+      rewardPoints: rewardPoints
+    };
+
+    // Save to Firestore
+    await saveUserData('profile', profileData);
+
+    // Update local state
+    userName = newName;
+    userBio = newBio;
+    userInterests = interests;
+    document.getElementById('profileSidebarName').textContent = userName;
+
+    showToast('Profile updated successfully! 🎉', 'success');
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  } catch (err) {
+    console.error('Error saving profile:', err);
+    showToast('Failed to save profile. Please try again.', 'error');
+    const btn = document.querySelector('#profile .btn-primary');
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Profile';
+    btn.disabled = false;
+  }
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -1652,8 +1981,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Render recipes
   renderRecipes();
 
-  // Populate meal plan dropdowns
-  populateMealPlanDropdowns();
+  // Meal plan is now text inputs
 
   // Render quick calorie reference
   renderQuickRef();
@@ -1663,6 +1991,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize auth UI
   updateAuthUI();
+
+  // Add event listener for custom allergen input (Enter key)
+  const allergenInput = document.getElementById('customAllergen');
+  if (allergenInput) {
+    allergenInput.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addCustomAllergen();
+      }
+    });
+  }
 
   // Check if we just returned from a successful Stripe Payment
   const urlParams = new URLSearchParams(window.location.search);
